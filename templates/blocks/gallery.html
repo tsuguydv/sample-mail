@@ -1,0 +1,14 @@
+<tr>
+  <td class="mobile-padding" style="padding:28px 32px; background-color:{{ surface_color }};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        {% for item in items %}
+        <td class="stack-column" width="33.33%" valign="top" style="padding:0 6px 12px 6px; font-family:{{ font_family }};">
+          <img class="fluid-img" src="{{ item.image_url }}" width="176" alt="{{ item.image_alt }}" style="width:100%; max-width:176px; height:auto; border-radius:8px;">
+          <div style="padding-top:10px; font-size:14px; line-height:20px; color:{{ text_color }}; font-weight:bold; text-align:center;">{{ item.title }}</div>
+        </td>
+        {% endfor %}
+      </tr>
+    </table>
+  </td>
+</tr>

@@ -1,0 +1,16 @@
+<tr>
+  <td class="mobile-padding" style="padding:30px 32px; background-color:{{ surface_color }};">
+    <h2 style="margin:0 0 18px 0; font-family:{{ font_family }}; font-size:24px; line-height:32px; color:{{ text_color }}; text-align:center;">{{ title }}</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        {% for member in members %}
+        <td class="stack-column" width="33.33%" align="center" valign="top" style="padding:0 8px 12px 8px; font-family:{{ font_family }};">
+          <img src="{{ member.image_url }}" width="88" height="88" alt="{{ member.name }}" style="width:88px; height:88px; border-radius:44px; margin:0 auto;">
+          <div style="padding-top:10px; font-size:15px; line-height:21px; color:{{ text_color }}; font-weight:bold;">{{ member.name }}</div>
+          <div style="font-size:13px; line-height:19px; color:{{ muted_color }};">{{ member.role }}</div>
+        </td>
+        {% endfor %}
+      </tr>
+    </table>
+  </td>
+</tr>

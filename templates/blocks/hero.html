@@ -1,0 +1,31 @@
+<tr>
+  <td class="mobile-padding" style="padding:34px 32px 30px 32px; background-color:{{ surface_color }};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      {% if image_url %}
+      <tr>
+        <td style="padding-bottom:24px;">
+          <img class="fluid-img" src="{{ image_url }}" width="576" alt="" style="width:100%; max-width:576px; height:auto; border-radius:8px;">
+        </td>
+      </tr>
+      {% endif %}
+      <tr>
+        <td style="font-family:{{ font_family }}; text-align:center;">
+          <div style="font-size:13px; line-height:20px; color:{{ accent_color }}; font-weight:bold; text-transform:uppercase;">{{ eyebrow }}</div>
+          <h1 style="margin:10px 0 12px 0; font-size:34px; line-height:42px; color:{{ text_color }}; font-weight:bold;">{{ title }}</h1>
+          <p style="margin:0 auto; max-width:500px; font-size:17px; line-height:26px; color:{{ muted_color }};">{{ subtitle }}</p>
+        </td>
+      </tr>
+      <tr>
+        <td align="center" style="padding-top:24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td bgcolor="{{ primary_color }}" style="border-radius:6px;">
+                <a href="{{ button_url }}" style="display:inline-block; padding:14px 24px; font-family:{{ font_family }}; font-size:15px; line-height:20px; color:#ffffff; font-weight:bold;">{{ button_text }}</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>

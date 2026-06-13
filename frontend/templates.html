@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.templates">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Шаблоны</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <style>
+    .tmpl-card{
+      min-height: 290px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      position:relative;
+      overflow:hidden;
+    }
+    .tmpl-visual{
+      position:relative;
+      height:170px;
+      border:1px solid var(--border);
+      border-radius:8px;
+      overflow:hidden;
+      flex:0 0 auto;
+    }
+    .tmpl-head{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      font-weight:700;
+      font-size:14px;
+      color:#ffffff;
+      padding:12px;
+      text-shadow:0 1px 1px rgba(0,0,0,.18);
+      height:56px;
+    }
+    .tmpl-mini{
+      background:var(--card);
+      padding:8px 10px 10px 10px;
+      display:grid;
+      gap:6px;
+      min-height:104px;
+    }
+    .tmpl-card-meta{
+      margin-top:auto;
+      display:grid;
+      gap:4px;
+    }
+    :root[data-theme="dark"] .tmpl-head{
+      color:#f8fafc;
+      text-shadow:0 1px 2px rgba(0,0,0,.45);
+    }
+    :root[data-theme="dark"] .tmpl-card-meta > div:first-child{
+      color:#f2f4f7;
+    }
+    .tmpl-swatch-row{
+      display:grid;
+      grid-template-columns:repeat(4, 1fr);
+      gap:6px;
+      margin-bottom:2px;
+    }
+    .tmpl-swatch{
+      height:8px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.06);
+    }
+    .tmpl-mini-row{
+      height:8px;
+      border-radius:4px;
+      opacity:.95;
+    }
+    .tmpl-mini-row.head{ height:10px; }
+    .tmpl-mini-row.image{
+      height:28px;
+      border:1px dashed var(--border);
+      background:transparent !important;
+      opacity:1;
+    }
+    .tmpl-mini-row.cta{
+      width:48%;
+      margin-left:auto;
+      margin-right:auto;
+      height:10px;
+    }
+    .tmpl-mini-row.footer{ height:7px; opacity:.8; }
+    .gen-actions{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:16px;
+    }
+    .gen-pay-group{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:12px;
+    }
+    .gen-cost-wrap{
+      position:relative;
+      min-width:200px;
+      max-width:280px;
+    }
+    .gen-cost-label{
+      display:block;
+      font-size:11px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+    .gen-cost-toggle{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:12px 16px;
+      min-height:46px;
+      box-sizing:border-box;
+      border:2px solid var(--border);
+      border-radius:8px;
+      background:var(--card);
+      color:var(--text);
+      font-size:15px;
+      font-weight:700;
+      cursor:pointer;
+      width:100%;
+      text-align:left;
+    }
+    .gen-cost-toggle:hover{ border-color:var(--primary); }
+    .gen-cost-toggle[aria-expanded="true"] .gen-cost-chevron{ transform:rotate(180deg); }
+    .gen-cost-chevron{
+      margin-left:auto;
+      font-size:10px;
+      opacity:.7;
+      transition:transform .15s ease;
+    }
+    .gen-cost-breakdown{
+      position:absolute;
+      left:0;
+      right:0;
+      top:calc(100% + 6px);
+      z-index:20;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:8px;
+      background:var(--card);
+      box-shadow:0 8px 24px rgba(0,0,0,.12);
+    }
+    .gen-cost-breakdown[hidden]{ display:none; }
+    .gen-cost-line{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      font-size:13px;
+      padding:4px 0;
+    }
+    .gen-cost-line.total{
+      border-top:1px solid var(--border);
+      margin-top:6px;
+      padding-top:8px;
+      font-weight:700;
+    }
+    .gen-cost-wrap.is-free .gen-cost-total{ color:var(--primary); }
+    .gen-cost-wrap.is-warn .gen-cost-total{ color:#b45309; }
+  </style>
+</head>
+<body>
+
+  <main class="container page-shell">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+    <div id="loading" class="center-screen" style="min-height:60vh;">
+      <div id="tmpl-loading-spinner" class="spinner" role="status" aria-label=""></div>
+    </div>
+
+    <div id="content" style="display:none;">
+      <header class="page-header">
+        <h1 class="h2" data-i18n="templates.title">Choose a template</h1>
+        <p class="p page-subtitle" data-i18n="templates.subtitle">Choose one template, then click Generate.</p>
+        <div style="margin-top:12px;">
+          <a class="btn btn-outline" href="my-templates.html" data-i18n="nav.templates">Templates</a>
+          <a class="btn btn-outline" href="template-builder.html" data-i18n="templates.button.builder">Block builder</a>
+        </div>
+      </header>
+      <div class="spacer-4"></div>
+
+      <p id="tmpl-error" class="error" role="alert" style="display:none;"></p>
+
+      <p id="tmpl-empty" class="muted" style="display:none;" data-i18n="templates.empty">Шаблоны не найдены.</p>
+
+      <div id="tmpl-grid" class="grid grid-2 grid-3" style="margin-bottom:24px;"></div>
+
+      <div class="gen-actions">
+        <div class="gen-pay-group">
+          <button class="btn btn-primary" id="btn-generate" data-i18n="templates.button.generate">Сгенерировать письма</button>
+          <div id="gen-cost-wrap" class="gen-cost-wrap">
+            <span class="gen-cost-label" data-i18n="templates.cost.label">You'll pay</span>
+            <button type="button" id="gen-cost-toggle" class="gen-cost-toggle" aria-expanded="false" aria-controls="gen-cost-breakdown" disabled>
+              <span id="gen-cost-total" class="gen-cost-total" data-i18n="templates.cost.selectTemplate">Select a template</span>
+              <span class="gen-cost-chevron" aria-hidden="true">▼</span>
+            </button>
+          <div id="gen-cost-breakdown" class="gen-cost-breakdown" hidden>
+            <div class="gen-cost-line" id="gen-cost-text-row">
+              <span data-i18n="templates.cost.lineText">Email text</span>
+              <span id="gen-cost-text-val">—</span>
+            </div>
+            <div class="gen-cost-line" id="gen-cost-image-row">
+              <span data-i18n="templates.cost.lineImage">Image</span>
+              <span id="gen-cost-image-val">—</span>
+            </div>
+            <div class="gen-cost-line total">
+              <span data-i18n="templates.cost.lineTotal">Total</span>
+              <span id="gen-cost-total-val">—</span>
+            </div>
+          </div>
+          </div>
+        </div>
+        <a class="btn btn-outline" href="params.html" data-i18n="templates.button.back">Назад</a>
+      </div>
+    </div>
+  </main>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (async function(){
+      if(!requireAuth()) return;
+
+      let ent = null;
+      try{
+        const acc = await API.getAccount();
+        ent = acc && acc.entitlements ? acc.entitlements : null;
+      }catch(e){
+        /* ignore */
+      }
+
+      const btn = document.getElementById("btn-generate");
+      const loading = document.getElementById("loading");
+      const content = document.getElementById("content");
+      const grid = document.getElementById("tmpl-grid");
+      const empty = document.getElementById("tmpl-empty");
+      const error = document.getElementById("tmpl-error");
+
+      let generationQuote = null;
+      let templates = [];
+      let selected = Store.getSelectedTemplate();
+
+      const costWrap = document.getElementById("gen-cost-wrap");
+      const costToggle = document.getElementById("gen-cost-toggle");
+      const costBreakdown = document.getElementById("gen-cost-breakdown");
+      const costTotalEl = document.getElementById("gen-cost-total");
+      const costTextRow = document.getElementById("gen-cost-text-row");
+      const costImageRow = document.getElementById("gen-cost-image-row");
+      const costTextVal = document.getElementById("gen-cost-text-val");
+      const costImageVal = document.getElementById("gen-cost-image-val");
+      const costTotalVal = document.getElementById("gen-cost-total-val");
+
+      function showSelectTemplatePrice(){
+        costWrap.classList.remove("is-free", "is-warn");
+        costToggle.disabled = true;
+        costToggle.setAttribute("aria-expanded", "false");
+        costBreakdown.hidden = true;
+        costTotalEl.removeAttribute("data-i18n-skip");
+        costTotalEl.textContent = t("templates.cost.selectTemplate");
+        costTextVal.textContent = "—";
+        costImageVal.textContent = "—";
+        costTotalVal.textContent = "—";
+      }
+
+      costToggle.addEventListener("click", () => {
+        const open = costToggle.getAttribute("aria-expanded") === "true";
+        costToggle.setAttribute("aria-expanded", open ? "false" : "true");
+        costBreakdown.hidden = open;
+      });
+
+      document.addEventListener("click", (ev) => {
+        if(!costWrap.contains(ev.target)){
+          costToggle.setAttribute("aria-expanded", "false");
+          costBreakdown.hidden = true;
+        }
+      });
+
+      function tokenLabel(n){
+        return t("templates.cost.tokens", { n: String(n) });
+      }
+
+      function localQuoteFromTemplate(tpl){
+        const wantsImage = Number((tpl.objectCounts || {}).image || 0) > 0;
+        const canImages = ent ? ent.canGenerateImages !== false : true;
+        const includeImage = wantsImage && canImages;
+        const textT = Number(ent?.tokensPerText ?? 10);
+        const imgT = includeImage ? Number(ent?.tokensPerImage ?? 20) : 0;
+        const total = textT + imgT;
+        const bal = Number(ent?.tokenBalance ?? 0);
+        const usesFree = ent?.canGenerate !== false && ent?.canGenerateFreeToday;
+        const canGen = ent?.canGenerate !== false;
+        return {
+          templateId: tpl.id,
+          includeImage,
+          templateWantsImage: wantsImage,
+          imagesAllowed: canImages,
+          textTokens: textT,
+          imageTokens: imgT,
+          totalTokens: total,
+          tokenBalance: bal,
+          canAfford: canGen && (usesFree || bal >= total),
+          usesFreeSlot: usesFree,
+          canGenerate: canGen,
+          reputationScore: ent?.reputationScore ?? 100,
+          reputationZone: ent?.reputationZone || "good",
+        };
+      }
+
+      async function refreshGenerationQuote(){
+        if(!selected){
+          generationQuote = null;
+          showSelectTemplatePrice();
+          btn.disabled = true;
+          return;
+        }
+        costToggle.disabled = true;
+        costTotalEl.setAttribute("data-i18n-skip", "1");
+        costTotalEl.textContent = t("common.loading");
+        const tid = selected.id || selected.templateId || "t1";
+        try{
+          if(typeof API.getGenerationQuote === "function"){
+            generationQuote = await API.getGenerationQuote(tid);
+          }else{
+            generationQuote = localQuoteFromTemplate(selected);
+          }
+        }catch(e){
+          generationQuote = localQuoteFromTemplate(selected);
+        }
+        updateGenCostUI();
+      }
+
+      function updateGenCostUI(){
+        if(!selected){
+          showSelectTemplatePrice();
+          btn.disabled = true;
+          return;
+        }
+        if(!generationQuote){
+          generationQuote = localQuoteFromTemplate(selected);
+        }
+        if(!generationQuote){
+          costToggle.disabled = true;
+          costTotalEl.setAttribute("data-i18n-skip", "1");
+          costTotalEl.textContent = "—";
+          btn.disabled = !selected;
+          return;
+        }
+        const q = generationQuote;
+        costToggle.disabled = false;
+        costWrap.classList.remove("is-free", "is-warn");
+        costToggle.setAttribute("aria-expanded", "false");
+        costBreakdown.hidden = true;
+        costTotalEl.setAttribute("data-i18n-skip", "1");
+
+        if(!q.canGenerate){
+          costWrap.classList.add("is-warn");
+          costTotalEl.textContent = t("templates.cost.blocked");
+          costTextVal.textContent = "—";
+          costImageVal.textContent = "—";
+          costTotalVal.textContent = "—";
+          costImageRow.style.display = "none";
+          btn.disabled = true;
+          if(typeof updateReputationMeter === "function") updateReputationMeter(q);
+          return;
+        }
+        btn.disabled = !selected;
+
+        const textT = q.textTokens || 0;
+        const imgT = q.imageTokens || 0;
+        const total = q.totalTokens || 0;
+
+        if(q.usesFreeSlot){
+          costWrap.classList.add("is-free");
+          costTotalEl.textContent = t("templates.cost.toggleFree");
+          costTextVal.textContent = t("templates.cost.lineFree");
+          costImageVal.textContent = (q.templateWantsImage && !q.imagesAllowed)
+            ? t("templates.cost.noImages", { rep: q.reputationScore })
+            : t("templates.cost.lineFree");
+          costTotalVal.textContent = t("templates.cost.lineFree");
+          costTextRow.style.display = "";
+          costImageRow.style.display = q.templateWantsImage ? "" : "none";
+          if(typeof updateReputationMeter === "function") updateReputationMeter(q);
+          return;
+        }
+
+        if(!q.canAfford) costWrap.classList.add("is-warn");
+        costTotalEl.textContent = t("templates.cost.toggleTotal", { n: total });
+        costTextVal.textContent = tokenLabel(textT);
+        if(q.templateWantsImage && !q.imagesAllowed){
+          costImageVal.textContent = t("templates.cost.noImages", { rep: q.reputationScore });
+          costImageRow.style.display = "";
+        }else{
+          costImageVal.textContent = imgT > 0 ? tokenLabel(imgT) : "—";
+          costImageRow.style.display = imgT > 0 ? "" : "none";
+        }
+        costTotalVal.textContent = tokenLabel(total);
+        costTextRow.style.display = "";
+        if(typeof updateReputationMeter === "function"){
+          updateReputationMeter({
+            reputationScore: q.reputationScore,
+            reputationZone: q.reputationZone,
+          });
+        }
+      }
+
+      function updateLoadingSpinnerLabel(){
+        const sp = document.getElementById("tmpl-loading-spinner");
+        if(!sp) return;
+        const lang = Store.getLanguage();
+        const dict = I18N[lang] || {};
+        sp.setAttribute("aria-label", dict["templates.loading"] || "Loading templates…");
+      }
+      updateLoadingSpinnerLabel();
+
+      function render(){
+        grid.innerHTML = "";
+        if(!templates.length){
+          empty.style.display = "block";
+          return;
+        }
+        empty.style.display = "none";
+        const lang = Store.getLanguage();
+        const dict = I18N[lang] || {};
+        templates.forEach(t => {
+          const b = document.createElement("button");
+          b.type = "button";
+          const active = selected && selected.id === t.id;
+          b.className = "card tmpl-card";
+          b.classList.add("tmpl-card");
+          b.style.borderWidth = "2px";
+          b.style.borderColor = active ? "var(--primary)" : "var(--border)";
+          b.style.background = active ? "rgba(79,70,229,.10)" : "var(--card)";
+          b.style.padding = "10px";
+          b.style.textAlign = "left";
+          b.style.cursor = "pointer";
+
+          const translatedName = dict[t.name] || t.name;
+          const modularBadge = t.isModular ? `<span class="small" style="margin-left:6px;padding:2px 6px;border-radius:999px;background:rgba(79,70,229,.15);color:var(--primary);font-weight:600;">${dict["templates.modularBadge"] || "Blocks"}</span>` : "";
+          const oc = t.objectCounts || {};
+          const th = t.theme || {};
+          const primary = String(th.primary || "#4f46e5");
+          const secondary = String(th.secondary || "#7c3aed");
+          const accent = String(th.accent || "#e5e7eb");
+          const surface = String(th.surface || "#f8fafc");
+          const subtitle = `${Number(oc.body||0)} body · ${Number(oc.image||0)} image · ${Number(oc.cta||0)} cta`;
+          const bodyRows = Math.max(0, Number(oc.body||0));
+          const hasHeader = Number(oc.header||0) > 0;
+          const hasImage = Number(oc.image||0) > 0;
+          const hasCta = Number(oc.cta||0) > 0;
+          const hasFooter = Number(oc.footer||0) > 0;
+          const miniRows = [];
+          if(hasHeader) miniRows.push(`<div class="tmpl-mini-row head" style="background:${primary};"></div>`);
+          if(hasImage) miniRows.push(`<div class="tmpl-mini-row image" title="image slot"></div>`);
+          for(let i=0;i<bodyRows;i++){
+            const shade = i % 2 === 0 ? accent : surface;
+            miniRows.push(`<div class="tmpl-mini-row" style="background:${shade};"></div>`);
+          }
+          if(hasCta) miniRows.push(`<div class="tmpl-mini-row cta" style="background:${secondary};"></div>`);
+          if(hasFooter) miniRows.push(`<div class="tmpl-mini-row footer" style="background:${surface}; border:1px solid ${accent};"></div>`);
+          b.innerHTML = `
+            <div class="tmpl-visual">
+              <div class="tmpl-head" style="background:linear-gradient(135deg, ${primary} 0%, ${secondary} 100%);">
+                ${translatedName}${modularBadge}
+              </div>
+              <div class="tmpl-mini" style="background:${surface};">
+                <div class="tmpl-swatch-row">
+                  <div class="tmpl-swatch" style="background:${primary};"></div>
+                  <div class="tmpl-swatch" style="background:${secondary};"></div>
+                  <div class="tmpl-swatch" style="background:${accent};"></div>
+                  <div class="tmpl-swatch" style="background:${surface};"></div>
+                </div>
+                ${miniRows.join("")}
+              </div>
+            </div>
+            <div class="tmpl-card-meta">
+              <div style="font-weight:700;">${translatedName}${modularBadge}</div>
+              ${subtitle ? `<div class="small muted">${subtitle}</div>` : ""}
+            </div>
+          `;
+          b.addEventListener("click", () => {
+            selected = t;
+            Store.setSelectedTemplate(t);
+            render();
+            void refreshGenerationQuote();
+          });
+          grid.appendChild(b);
+        });
+
+        btn.disabled = !selected;
+        if(selected) void refreshGenerationQuote();
+        else showSelectTemplatePrice();
+      }
+
+      (async () => {
+        try{
+          templates = await API.getTemplates();
+          // Custom templates removed; built-ins only.
+        }catch{
+          const lang = Store.getLanguage();
+          const dict = I18N[lang] || {};
+          error.textContent = dict["templates.error.load"] || "Не удалось загрузить шаблоны";
+          error.style.display = "block";
+        }finally{
+          loading.style.display = "none";
+          content.style.display = "block";
+          render();
+          if(selected) void refreshGenerationQuote();
+          else showSelectTemplatePrice();
+        }
+      })();
+
+      window.addEventListener("taskflock-language-changed", () => {
+        if(selected && generationQuote) updateGenCostUI();
+        else if(!selected) showSelectTemplatePrice();
+      });
+
+      btn.addEventListener("click", async () => {
+        if(!selected) return;
+        const emailParams = Store.getEmailParams();
+        if(!emailParams) return;
+        const lang = Store.getLanguage();
+        const dict = I18N[lang] || {};
+        btn.disabled = true;
+        btn.textContent = dict["templates.button.generating"] || "Генерация…";
+        error.style.display = "none";
+        try{
+          const lang = (typeof Store !== "undefined" && Store.getLanguage) ? Store.getLanguage() : undefined;
+          const started = await API.startGenerate({
+            companyId: undefined,
+            subject: emailParams.subject,
+            imageWishes: emailParams.imageWishes,
+            ctaLink: emailParams.ctaLink,
+            templateId: selected.id,
+            language: lang,
+            blockLayout: selected.blockLayout && selected.blockLayout.length ? selected.blockLayout : undefined,
+          });
+          const jobId = started && (started.jobId || started.job_id);
+          if(!jobId){
+            throw new Error(dict["templates.error.generate"] || "Generation error");
+          }
+          window.location.href = "generated-emails.html";
+        }catch(ex){
+          error.textContent = (ex && ex.message) ? ex.message : (dict["templates.error.generate"] || "Ошибка генерации");
+          error.style.display = "block";
+        }finally{
+          btn.disabled = false;
+          btn.textContent = dict["templates.button.generate"] || "Сгенерировать письма";
+        }
+      });
+
+      window.addEventListener("taskflock-language-changed", () => {
+        updateLoadingSpinnerLabel();
+        render();
+        const lang = Store.getLanguage();
+        const d = I18N[lang] || {};
+        if(btn && btn.textContent !== (d["templates.button.generating"] || "…")){
+          btn.textContent = d["templates.button.generate"] || "Generate emails";
+        }
+      });
+    })();
+  </script>
+
+  
+  
+</body>
+</html>

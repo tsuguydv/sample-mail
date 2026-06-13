@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <title>{{ brand_name }}</title>
+  <style>
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; display: block; }
+    table { border-collapse: collapse !important; }
+    body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+    a { text-decoration: none; }
+    @media screen and (max-width: 680px) {
+      .email-container { width: 100% !important; }
+      .stack-column, .stack-column td { display: block !important; width: 100% !important; max-width: 100% !important; }
+      .mobile-padding { padding-left: 20px !important; padding-right: 20px !important; }
+      .mobile-center { text-align: center !important; }
+      .fluid-img { width: 100% !important; height: auto !important; }
+      .mobile-spacer { height: 16px !important; line-height: 16px !important; }
+      .mobile-button { display: block !important; width: 100% !important; }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background-color:{{ background_color }};">
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent; font-size:1px; line-height:1px;">
+    {{ preheader }}
+  </div>
+  <center style="width:100%; background-color:{{ background_color }};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{{ background_color }};">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" class="email-container" width="{{ container_width }}" cellpadding="0" cellspacing="0" border="0" style="width:{{ container_width }}px; max-width:{{ container_width }}px; background-color:{{ surface_color }};">
+            {% for block in blocks %}
+              {{ block | safe }}
+            {% endfor %}
+          </table>
+        </td>
+      </tr>
+    </table>
+  </center>
+</body>
+</html>

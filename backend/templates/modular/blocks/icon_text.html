@@ -1,0 +1,17 @@
+<tr>
+  <td class="mobile-padding" style="padding:28px 32px; background-color:{{ surface_color }};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      {% for item in items %}
+      <tr>
+        <td width="48" valign="top" style="padding:0 14px 18px 0; font-family:{{ font_family }};">
+          <div style="width:40px; height:40px; line-height:40px; border-radius:20px; background-color:{{ primary_color }}; color:#ffffff; text-align:center; font-size:13px; font-weight:bold;">{{ item.icon }}</div>
+        </td>
+        <td valign="top" style="padding:0 0 18px 0; font-family:{{ font_family }};">
+          <div style="font-size:17px; line-height:24px; color:{{ text_color }}; font-weight:bold;">{{ item.title }}</div>
+          <div style="padding-top:4px; font-size:15px; line-height:23px; color:{{ muted_color }};">{{ item.text }}</div>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.params">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Параметры</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+  <main class="container container-narrow page-shell">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+    <header class="page-header">
+      <h1 class="h2" data-i18n="params.title">Email parameters</h1>
+      <p class="p page-subtitle" data-i18n="params.subtitle">Set the email topic and key parameters.</p>
+    </header>
+    <div class="spacer-2"></div>
+    <p class="p small" data-i18n-html="params.hint">
+      <strong>Параметры письма:</strong> о чём писать в письме, пожелания к картинке, ссылка для кнопки в письме.
+    </p>
+    <div class="spacer-6"></div>
+
+    <form id="params-form" class="page-form">
+      <div>
+        <label class="label" data-i18n="params.label.subject">О чём писать письмо *</label>
+        <textarea class="textarea" rows="3" name="subject"></textarea>
+        <p class="error" id="err-subject" style="display:none;"></p>
+      </div>
+
+      <div>
+        <label class="label" data-i18n="params.label.imageWishes">Пожелания к картинке</label>
+        <input class="input" name="imageWishes" data-i18n="params.placeholder.imageWishes" placeholder="Стиль, тема, цвета" />
+      </div>
+
+      <div>
+        <label class="label" data-i18n="params.label.ctaLink">Ссылка для кнопки в письме</label>
+        <input class="input" name="ctaLink" type="url" data-i18n="params.placeholder.cta" placeholder="https://…" />
+      </div>
+
+      <div class="row" style="gap:12px;">
+        <button class="btn btn-primary col" type="submit" data-i18n="params.button.next">Далее</button>
+        <a class="btn btn-outline col" href="company.html" data-i18n="params.button.back">Назад</a>
+      </div>
+    </form>
+  </main>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (function(){
+      if(!requireAuth()) return;
+
+      const form = document.getElementById("params-form");
+      const err = document.getElementById("err-subject");
+
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        err.style.display = "none";
+        const data = Object.fromEntries(new FormData(form).entries());
+        if(!String(data.subject||'').trim()){
+          const lang = Store.getLanguage();
+          const dict = I18N[lang] || {};
+          err.textContent = dict["params.error.subject"] || "Укажите, о чём писать письмо";
+          err.style.display = "block";
+          return;
+        }
+        Store.setEmailParams({
+          subject: String(data.subject),
+          imageWishes: String(data.imageWishes||"") || undefined,
+          ctaLink: String(data.ctaLink||"") || undefined,
+        });
+        window.location.href = "templates.html";
+      });
+    })();
+  </script>
+
+  
+  
+</body>
+</html>

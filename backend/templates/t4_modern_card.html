@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="{{language}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{components.heading.text}}</title>
+</head>
+<body data-edit-slot="page" style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                
+                <!-- Main Card Container -->
+                <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 3px 14px rgba(15,23,42,0.10);">
+                    
+                    <!-- Compact Header Bar -->
+                    {% if components.heading.text or components.logo.enabled %}
+                    <tr>
+                        <td data-edit-slot="heading" style="padding: 20px 30px; background-color: {{components.theme.primary}}; background: linear-gradient(135deg, {{components.theme.primary}} 0%, {{components.theme.secondary}} 100%); text-align: {{components.heading.align}};">
+                            <table role="presentation" style="width: 100%;">
+                                <tr>
+                                    {% if components.logo.enabled %}
+                                    <td style="width: 40px; vertical-align: middle;">
+                                        <img data-edit-slot="logo" src="{{components.logo.url}}" alt="{{components.logo.alt}}" style="width: 36px; height: 36px; border-radius: 8px; object-fit: contain; background-color: rgba(255,255,255,0.15); padding: 4px;">
+                                    </td>
+                                    {% endif %}
+                                    <td style="vertical-align: middle; padding-left: {% if components.logo.enabled %}12px{% else %}0{% endif %};">
+                                        <div style="color: {{components.heading.textColor}}; font-size: 18px; font-weight: 700; letter-spacing: -0.3px;">{{components.heading.companyName or components.heading.text}}</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Image with Rounded Corners Inside Card -->
+                    {% if components.media.hasImage %}
+                    <tr>
+                        <td style="padding: 30px 30px 20px 30px; text-align: {{components.media.align}};">
+                            <img data-edit-slot="image" src="{{components.media.imageUrl}}" alt="{{components.media.imageAlt}}" style="width: 100%; height: auto; display: block; border-radius: {% if components.media.rounded %}12px{% else %}0{% endif %};">
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Content Area with Modern Typography -->
+                    {% if components.body.enabled %}
+                    <tr>
+                        <td style="padding: {% if image_url %}20px{% else %}40px{% endif %} 30px 30px 30px;">
+                            <div data-edit-slot="body" style="color: {{components.body.textColor}}; font-size: {{components.body.fontSize}}px; line-height: 1.7; letter-spacing: -0.2px; text-align: {{components.body.align}}; background: {{components.body.backgroundColor}};">
+                                {{components.body.html|safe}}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Modern CTA Button -->
+                    {% if components.cta.enabled %}
+                    <tr>
+                        <td style="padding: 10px 30px 40px 30px; text-align: {{components.cta.align}};">
+                            <a data-edit-slot="cta" href="{{components.cta.link}}" style="display: inline-block; padding: 13px 24px; background-color: {{components.cta.backgroundColor}}; color: {{components.cta.textColor}}; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; letter-spacing: -0.1px; box-shadow: 0 2px 8px rgba(15,23,42,0.14); transition: all 0.2s;">{{components.cta.label}}</a>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Divider -->
+                    <tr>
+                        <td style="padding: 0 30px;">
+                            <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, #e0e0e0 50%, transparent 100%);"></div>
+                        </td>
+                    </tr>
+
+                    <!-- Compact Footer -->
+                    {% if components.footer.enabled %}
+                    <tr>
+                        <td data-edit-slot="footer" style="padding: 25px 30px; text-align: {{components.footer.align}}; background: {{components.footer.backgroundColor}};">
+                            <table role="presentation" style="width: 100%;">
+                                <tr>
+                                    <td style="font-size: 13px; color: {{components.footer.textColor}}; line-height: 1.6;">
+                                        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                                            {% if components.footer.email %}
+                                            <div style="margin-right: 16px;">
+                                                <span style="color: {{components.theme.primary}}; font-weight: 600;">✉</span> 
+                                                <a href="mailto:{{components.footer.email}}" style="color: #666666; text-decoration: none;">{{components.footer.email}}</a>
+                                            </div>
+                                            {% endif %}
+                                            {% if components.footer.phone %}
+                                            <div style="margin-right: 16px;">
+                                                <span style="color: {{components.theme.primary}}; font-weight: 600;">📞</span> 
+                                                <span>{{components.footer.phone}}</span>
+                                            </div>
+                                            {% endif %}
+                                            {% if components.footer.website %}
+                                            <div>
+                                                <span style="color: {{components.theme.primary}}; font-weight: 600;">🌐</span> 
+                                                <a href="{{components.footer.website}}" style="color: #666666; text-decoration: none;">{{components.footer.website}}</a>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% if components.footer.hasSocialLinks %}
+                                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #f0f0f0;">
+                                            {{components.footer.socialLinksHtml|safe}}
+                                        </div>
+                                        {% endif %}
+                                        {% if not components.footer.email and not components.footer.phone and not components.footer.website and not components.footer.hasSocialLinks %}
+                                        <div>{{components.footer.companyName or components.heading.text}}</div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

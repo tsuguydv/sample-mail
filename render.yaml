@@ -1,0 +1,12 @@
+# Optional: create or sync a service from this Blueprint so PYTHON_VERSION is set.
+# If you already created the service manually, add the same env var in the dashboard.
+services:
+  - type: web
+    name: aimail
+    runtime: python
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8

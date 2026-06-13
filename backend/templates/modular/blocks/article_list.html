@@ -1,0 +1,18 @@
+<tr>
+  <td class="mobile-padding" style="padding:30px 32px; background-color:{{ surface_color }};">
+    <h2 style="margin:0 0 18px 0; font-family:{{ font_family }}; font-size:24px; line-height:32px; color:{{ text_color }};">{{ title }}</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      {% for article in articles %}
+      <tr>
+        <td width="88" valign="top" style="padding:0 16px 18px 0;">
+          <img src="{{ article.image_url }}" width="88" height="66" alt="{{ article.image_alt }}" style="width:88px; height:66px; border-radius:6px;">
+        </td>
+        <td valign="top" style="padding:0 0 18px 0; font-family:{{ font_family }};">
+          <a href="{{ article.url }}" style="font-size:17px; line-height:24px; color:{{ text_color }}; font-weight:bold;">{{ article.title }}</a>
+          <div style="padding-top:5px; font-size:14px; line-height:22px; color:{{ muted_color }};">{{ article.text }}</div>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>

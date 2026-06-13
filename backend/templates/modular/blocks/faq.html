@@ -1,0 +1,15 @@
+<tr>
+  <td class="mobile-padding" style="padding:30px 32px; background-color:{{ surface_color }};">
+    <h2 style="margin:0 0 16px 0; font-family:{{ font_family }}; font-size:24px; line-height:32px; color:{{ text_color }};">{{ title }}</h2>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      {% for item in items %}
+      <tr>
+        <td style="padding:14px 0; border-top:1px solid {{ border_color }}; font-family:{{ font_family }};">
+          <div style="font-size:16px; line-height:23px; color:{{ text_color }}; font-weight:bold;">{{ item.question }}</div>
+          <div style="padding-top:6px; font-size:14px; line-height:22px; color:{{ muted_color }};">{{ item.answer }}</div>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </td>
+</tr>

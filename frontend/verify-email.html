@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.verifyEmail">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Verify Email</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <main class="center-screen">
+    <div class="container container-narrow" style="max-width:520px;">
+      <div class="card card-pad" style="display:grid;gap:12px;">
+        <h1 class="h3" data-i18n="verify.title">Email verification</h1>
+        <p id="msg" class="p muted" data-i18n="verify.verifying">Verifying your email…</p>
+        <div class="row" style="gap:10px;">
+          <a class="btn btn-primary" href="login.html" data-i18n="verify.goLogin">Go to login</a>
+          <a class="btn btn-outline" href="register.html" data-i18n="verify.backRegister">Back to register</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script>
+    (async function(){
+      const msg = document.getElementById("msg");
+      const t = (key) => {
+        const lang = (typeof Store !== "undefined" && Store.getLanguage) ? Store.getLanguage() : "ru";
+        const d = (typeof I18N !== "undefined" && I18N[lang]) ? I18N[lang] : {};
+        const fb = (typeof I18N !== "undefined" && I18N.en) ? I18N.en : {};
+        return d[key] || fb[key] || key;
+      };
+      const token = (new URLSearchParams(window.location.search).get("token") || "").trim();
+      if(!token){
+        msg.textContent = t("verify.tokenMissing");
+        msg.className = "error";
+        return;
+      }
+      try{
+        await API.verifyEmail(token);
+        msg.textContent = t("verify.success");
+        msg.className = "p muted";
+      }catch(ex){
+        msg.textContent = (ex && ex.message) ? ex.message : t("verify.failed");
+        msg.className = "error";
+      }
+    })();
+  </script>
+</body>
+</html>

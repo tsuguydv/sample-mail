@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.buyTokens">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Buy tokens</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <main class="container container-narrow page-shell">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+    <header class="page-header">
+      <h1 class="h2" data-i18n="buyTokens.title">Buy more tokens</h1>
+      <p class="p page-subtitle" data-i18n="buyTokens.subtitle">Top up your balance at your plan rate after subscribing.</p>
+    </header>
+    <div class="card card-pad page-form" id="topup-card">
+      <p id="topup-status" class="small muted" data-i18n="payments.status.loading">Loading…</p>
+      <label class="label" for="tokenCount" data-i18n="buyTokens.label.amount">Token amount</label>
+      <input id="tokenCount" class="input" type="number" min="1" step="1" value="100" />
+      <p id="price-preview" class="small muted">—</p>
+      <p id="rate-line" class="small muted">—</p>
+      <p id="topup-error" class="error" style="display:none;"></p>
+      <div class="page-actions">
+        <button id="buy-btn" class="btn btn-primary" type="button" data-i18n="buyTokens.button.buy">Pay with PayPal</button>
+        <a class="btn btn-outline" href="account-settings.html" data-i18n="common.back">Back</a>
+      </div>
+    </div>
+    <p class="small muted" style="margin-top:12px;">
+      <a href="plans.html" data-i18n="buyTokens.link.plans">Need a subscription? Upgrade plan</a>
+    </p>
+  </main>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (async function(){
+      if(!requireAuth()) return;
+      const statusEl = document.getElementById("topup-status");
+      const errEl = document.getElementById("topup-error");
+      const countEl = document.getElementById("tokenCount");
+      const priceEl = document.getElementById("price-preview");
+      const rateEl = document.getElementById("rate-line");
+      const btn = document.getElementById("buy-btn");
+      let billing = null;
+      let ratePerToken = 0.012;
+
+      function fmtUsd(n){
+        return "$" + Number(n || 0).toFixed(2);
+      }
+
+      function updatePreview(){
+        const n = Math.max(1, parseInt(countEl.value, 10) || 0);
+        countEl.value = String(n);
+        const total = Math.round(n * ratePerToken * 100) / 100;
+        priceEl.setAttribute("data-i18n-skip", "1");
+        priceEl.textContent = t("buyTokens.pricePreview", { tokens: n.toLocaleString(), price: fmtUsd(total) });
+      }
+
+      async function load(){
+        statusEl.setAttribute("data-i18n-skip", "1");
+        statusEl.textContent = t("payments.status.loading");
+        try{
+          billing = await API.getBillingStatus();
+          if(!billing.canTopUpTokens){
+            statusEl.textContent = t("buyTokens.needSubscription");
+            btn.disabled = true;
+            countEl.disabled = true;
+            return;
+          }
+          const plan = billing.primaryPlan || {};
+          ratePerToken = Number(plan.extraTokenUsdPerToken || billing.tokenUsdReference || 0.012);
+          rateEl.setAttribute("data-i18n-skip", "1");
+          rateEl.textContent = t("buyTokens.rateLine", {
+            price: plan.extraTokenDisplayPrice || ("$" + ratePerToken.toFixed(3)),
+            bal: Number(billing.tokenBalance || 0).toLocaleString(),
+          });
+          statusEl.textContent = t("buyTokens.ready");
+          updatePreview();
+        }catch(ex){
+          statusEl.textContent = t("payments.status.errorLoad");
+          errEl.textContent = ex?.message || t("payments.status.errorBilling");
+          errEl.style.display = "block";
+        }
+      }
+
+      countEl.addEventListener("input", updatePreview);
+
+      btn.addEventListener("click", async () => {
+        errEl.style.display = "none";
+        btn.disabled = true;
+        const prev = btn.textContent;
+        btn.textContent = t("payments.button.redirecting");
+        try{
+          const tokenCount = Math.max(1, parseInt(countEl.value, 10) || 0);
+          const res = await API.createPaypalTokenOrder({ tokenCount });
+          if(!res?.approveUrl) throw new Error(t("payments.error.noUrl"));
+          if(res.orderId){
+            try{ sessionStorage.setItem("paypalTokenOrderId", res.orderId); }catch(e){}
+          }
+          window.location.href = res.approveUrl;
+        }catch(ex){
+          errEl.textContent = ex?.message || t("payments.error.init");
+          errEl.style.display = "block";
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      if(params.get("success") === "1"){
+        const orderId = (() => {
+          try{ return sessionStorage.getItem("paypalTokenOrderId") || ""; }catch(e){ return ""; }
+        })();
+        if(orderId){
+          try{
+            await API.capturePaypalOrder({ orderId });
+            try{ sessionStorage.removeItem("paypalTokenOrderId"); }catch(e){}
+            statusEl.textContent = t("buyTokens.success");
+          }catch(ex){
+            errEl.textContent = ex?.message || t("buyTokens.captureFailed");
+            errEl.style.display = "block";
+          }
+        }
+      }
+
+      window.addEventListener("taskflock-language-changed", () => { updatePreview(); });
+      await load();
+    })();
+  </script>
+</body>
+</html>

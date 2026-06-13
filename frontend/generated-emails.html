@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.generatedEmails">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Сгенерированные письма</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <style>
+    .status-page{ max-width:1320px; }
+    .status-subtitle{ margin-top:4px; color:var(--muted); }
+    .status-shell{
+      margin-top:10px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:var(--card);
+      min-height:calc(100vh - 230px);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    .status-toolbar{
+      position:sticky;
+      top:0;
+      z-index:20;
+      padding:12px;
+      border-bottom:1px solid var(--border);
+      background:var(--card);
+    }
+    .filters{
+      display:grid;
+      gap:10px;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      align-items:end;
+    }
+    .filters .label{ font-size:12px; color:var(--muted); margin-bottom:4px; }
+    .filters .input, .filters .select{ min-height:36px; border-radius:8px; box-shadow:none; }
+    .status-body{ flex:1; min-height:260px; overflow:auto; }
+    .gen-table{ width:100%; border-collapse:collapse; font-size:13px; }
+    .gen-table th, .gen-table td{
+      text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle;
+    }
+    .gen-table thead th{
+      position:sticky; top:0; z-index:10; background:var(--card);
+      font-weight:600; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap;
+    }
+    .gen-table tbody tr:last-child td{ border-bottom:0; }
+    .gen-subj{ max-width:280px; word-break:break-word; }
+    .gen-err{ max-width:280px; word-break:break-word; color:#b42318; font-size:12px; }
+    .gen-rem{ white-space:nowrap; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .gen-row-highlight{ background:rgba(79,70,229,.08); }
+    .gen-badge{ display:inline-block; padding:3px 8px; border-radius:999px; font-size:11px; font-weight:600; border:1px solid transparent; }
+    .gen-badge-queued{ color:#475467; background:#f2f4f7; border-color:#eaecf0; }
+    .gen-badge-running{ color:#344054; background:#f8f9fb; border-color:#eaecf0; }
+    .gen-badge-done{ color:#067647; background:#ecfdf3; border-color:#d1fadf; }
+    .gen-badge-error{ color:#b42318; background:#fef3f2; border-color:#fecdca; }
+    .type-pill{
+      display:inline-block; padding:2px 7px; border-radius:999px; font-size:10px; font-weight:700;
+      text-transform:uppercase; letter-spacing:.03em; color:var(--muted); border:1px solid var(--border);
+    }
+    .row-actions{ display:flex; justify-content:flex-end; }
+    .menu-dot-btn{
+      border:0; background:transparent; padding:0 4px; min-width:auto;
+      font-size:20px; line-height:1; cursor:pointer; color:var(--text); opacity:.75;
+    }
+    .menu-dot-btn:hover{ opacity:1; }
+    .row-menu-pop{
+      position:fixed; left:0; top:0; min-width:160px; padding:6px;
+      border:1px solid var(--border); border-radius:10px; background:var(--card);
+      box-shadow:0 10px 26px rgba(16,24,40,.16); z-index:70; display:none;
+    }
+    .row-menu-pop.open{ display:block; }
+    .row-menu-item{
+      width:100%; border:0; background:transparent; color:var(--text); text-align:left;
+      padding:8px 10px; border-radius:8px; cursor:pointer; font-size:13px;
+    }
+    .row-menu-item:hover{ background:var(--surface); }
+    .row-menu-item.danger{ color:#b42318; }
+    .status-empty{ padding:18px 14px; color:var(--muted); }
+    :root[data-theme="dark"] .gen-row-highlight{ background:rgba(124,58,237,.16); }
+    :root[data-theme="dark"] .row-menu-pop{ box-shadow:0 10px 26px rgba(0,0,0,.45); }
+    @media (max-width:1100px){ .filters{ grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
+    @media (max-width:760px){
+      .filters{ grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      .gen-table th, .gen-table td{ padding:8px 10px; }
+      .status-shell{ min-height:calc(100vh - 190px); }
+    }
+  </style>
+</head>
+<body>
+  <main class="container page-shell status-page">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+
+    <header class="page-header">
+      <h1 class="h2" data-i18n="generatedEmails.title">Emails &amp; status</h1>
+      <p class="p page-subtitle" data-i18n="generatedEmails.subtitle">Active generation jobs and saved email history.</p>
+    </header>
+
+    <div class="status-shell">
+      <div class="status-toolbar">
+        <div class="filters">
+          <div>
+            <label class="label" for="filter-subject" data-i18n="generatedEmails.filter.subject">Subject</label>
+            <input id="filter-subject" class="input" type="text" data-i18n="generatedEmails.filter.subjectPlaceholder" placeholder="Search subject..." />
+          </div>
+          <div>
+            <label class="label" for="filter-template" data-i18n="generatedEmails.filter.template">Template</label>
+            <select id="filter-template" class="select">
+              <option value="" data-i18n="generatedEmails.filter.all">All</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="filter-status" data-i18n="generatedEmails.filter.status">Status</label>
+            <select id="filter-status" class="select">
+              <option value="" data-i18n="generatedEmails.filter.all">All</option>
+              <option value="queued" data-i18n="generations.badge.queued">Queued</option>
+              <option value="running" data-i18n="generations.badge.running">Running</option>
+              <option value="done" data-i18n="generations.badge.done">Done</option>
+              <option value="error" data-i18n="generations.badge.error">Error</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="filter-date-from" data-i18n="generatedEmails.filter.from">From</label>
+            <input id="filter-date-from" class="input" type="date" />
+          </div>
+          <div>
+            <label class="label" for="filter-date-to" data-i18n="generatedEmails.filter.to">To</label>
+            <input id="filter-date-to" class="input" type="date" />
+          </div>
+          <div>
+            <label class="label" for="filter-error-only" data-i18n="generatedEmails.filter.errorOnly">Error only</label>
+            <select id="filter-error-only" class="select">
+              <option value="" data-i18n="generatedEmails.filter.no">No</option>
+              <option value="1" data-i18n="generatedEmails.filter.yes">Yes</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="status-body">
+        <p id="err-main" class="error" style="display:none; margin:10px 12px;"></p>
+        <div id="empty-main" class="status-empty" style="display:none;" data-i18n="generatedEmails.emptyRows">No rows found.</div>
+        <table id="table-main" class="gen-table" style="display:none;">
+          <thead>
+            <tr>
+              <th data-i18n="generations.col.started">Started</th>
+              <th data-i18n="generatedEmails.col.type">Type</th>
+              <th data-i18n="generations.col.subject">Subject</th>
+              <th data-i18n="generations.col.template">Template</th>
+              <th data-i18n="generations.col.status">Status</th>
+              <th data-i18n="generations.col.step">Step</th>
+              <th data-i18n="generations.col.remaining">Remaining</th>
+              <th data-i18n="generations.col.error">Error</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="main-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (async function(){
+      if(!requireAuth()) return;
+      if(typeof applyTranslations === "function") applyTranslations();
+
+      const highlightJobId = (new URLSearchParams(location.search).get("job") || "").trim();
+      const errMainEl = document.getElementById("err-main");
+      const emptyMainEl = document.getElementById("empty-main");
+      const tableMainEl = document.getElementById("table-main");
+      const bodyMainEl = document.getElementById("main-body");
+      const filterSubjectEl = document.getElementById("filter-subject");
+      const filterTemplateEl = document.getElementById("filter-template");
+      const filterStatusEl = document.getElementById("filter-status");
+      const filterDateFromEl = document.getElementById("filter-date-from");
+      const filterDateToEl = document.getElementById("filter-date-to");
+      const filterErrorOnlyEl = document.getElementById("filter-error-only");
+      let jobsCache = [];
+      let emailsCache = [];
+
+      document.addEventListener("click", (ev) => {
+        if(ev.target && ev.target.closest && ev.target.closest(".row-menu")) return;
+        document.querySelectorAll(".row-menu-pop.open").forEach((el) => el.classList.remove("open"));
+      });
+
+      function t(key){
+        const lang = (typeof Store !== "undefined" && Store.getLanguage) ? Store.getLanguage() : "ru";
+        const d = (typeof I18N !== "undefined" && I18N[lang]) ? I18N[lang] : {};
+        const fallback = (typeof I18N !== "undefined" && I18N.en) ? I18N.en : {};
+        return d[key] || fallback[key] || key;
+      }
+      function showErr(msg){
+        errMainEl.textContent = msg || t("common.error");
+        errMainEl.style.display = "block";
+      }
+      function badgeClass(st){
+        if(st === "done") return "gen-badge gen-badge-done";
+        if(st === "error") return "gen-badge gen-badge-error";
+        if(st === "running") return "gen-badge gen-badge-running";
+        return "gen-badge gen-badge-queued";
+      }
+      function badgeText(st){ return t("generations.badge." + (st || "queued")); }
+      function stepText(stepKey){ return t("status.step." + (stepKey || "queued")); }
+      function templateLabel(templateId){
+        const id = String(templateId || "").trim().toLowerCase();
+        if(!id) return "—";
+        const key = "template." + id;
+        const tr = t(key);
+        return tr && tr !== key ? tr : templateId;
+      }
+      function positionMenu(btn, menu){
+        const r = btn.getBoundingClientRect();
+        const desiredLeft = r.left - (menu.offsetWidth || 170) - 8;
+        const desiredTop = r.top + Math.max(0, (r.height - (menu.offsetHeight || 120)) / 2);
+        const maxLeft = window.innerWidth - (menu.offsetWidth || 170) - 8;
+        const maxTop = window.innerHeight - (menu.offsetHeight || 120) - 8;
+        menu.style.left = Math.max(8, Math.min(desiredLeft, maxLeft)) + "px";
+        menu.style.top = Math.max(8, Math.min(desiredTop, maxTop)) + "px";
+      }
+      function formatStarted(iso){
+        if(!iso) return "—";
+        try{
+          const d = new Date(iso);
+          if(Number.isNaN(d.getTime())) return iso.slice(0, 19).replace("T", " ");
+          return d.toLocaleString();
+        }catch{ return String(iso).slice(0, 19); }
+      }
+      function formatRemaining(r, st){
+        if(st === "done" || st === "error") return t("generations.remaining.done");
+        const sec = r.estimatedSecondsRemaining != null ? r.estimatedSecondsRemaining : r.estimated_seconds_remaining;
+        if(sec == null || Number.isNaN(Number(sec))) return t("generations.remaining.unknown");
+        return t("generations.remainingEta", { seconds: Math.max(0, Math.round(Number(sec))) });
+      }
+      function hasActive(rows){ return Array.isArray(rows) && rows.some((r) => r && (r.status === "queued" || r.status === "running")); }
+      function parseIsoDate(s){
+        if(!s) return null;
+        const d = new Date(s);
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+      function dateOnlyKey(iso){
+        const d = parseIsoDate(iso);
+        if(!d) return "";
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      }
+      function collectRows(){
+        const rows = [];
+        for(const j of jobsCache){
+          const st = j.status || "queued";
+          if(st === "done") continue;
+          rows.push({
+            kind: "job",
+            id: j.jobId || j.job_id || "",
+            startedAt: j.startedAt || j.started_at || "",
+            subject: (j.subject || "").trim(),
+            templateId: (j.templateId || "").trim(),
+            status: st,
+            stepKey: j.stepKey || j.step_key || "queued",
+            remaining: formatRemaining(j, st),
+            error: (j.error || "").trim(),
+            failureKind: j.failureKind || "",
+            tokensCharged: j.tokensCharged || 0,
+            refundStatus: j.refundStatus || "none",
+            canRequestRefund: !!j.canRequestRefund,
+            raw: j,
+          });
+        }
+        for(const e of emailsCache){
+          rows.push({
+            kind: "email",
+            id: e.id,
+            startedAt: e.createdAt || e.updatedAt || "",
+            subject: (e.subject || "").trim(),
+            templateId: (e.templateId || "").trim(),
+            status: "done",
+            stepKey: "done",
+            remaining: t("generations.remaining.done"),
+            error: "",
+            raw: e,
+          });
+        }
+        rows.sort((a, b) => {
+          const va = (parseIsoDate(a.startedAt) || {getTime:()=>0}).getTime();
+          const vb = (parseIsoDate(b.startedAt) || {getTime:()=>0}).getTime();
+          return vb - va;
+        });
+        return rows;
+      }
+      function applyFilters(rows){
+        const q = filterSubjectEl.value.trim().toLowerCase();
+        const template = filterTemplateEl.value.trim().toLowerCase();
+        const status = filterStatusEl.value.trim().toLowerCase();
+        const dFrom = filterDateFromEl.value || "";
+        const dTo = filterDateToEl.value || "";
+        const onlyErr = filterErrorOnlyEl.value === "1";
+        return rows.filter((r) => {
+          if(q && !String(r.subject || "").toLowerCase().includes(q)) return false;
+          if(template && String(r.templateId || "").toLowerCase() !== template) return false;
+          if(status && String(r.status || "").toLowerCase() !== status) return false;
+          const dk = dateOnlyKey(r.startedAt);
+          if(dFrom && (!dk || dk < dFrom)) return false;
+          if(dTo && (!dk || dk > dTo)) return false;
+          if(onlyErr && !(String(r.status) === "error" || String(r.error || "").trim())) return false;
+          return true;
+        });
+      }
+      function renderTemplateFilter(){
+        const cur = filterTemplateEl.value;
+        const map = new Map();
+        collectRows().forEach((r) => {
+          const k = String(r.templateId || "").trim();
+          if(k) map.set(k, k);
+        });
+        const items = Array.from(map.values()).sort();
+        filterTemplateEl.innerHTML = `<option value="">${t("generatedEmails.filter.all")}</option>`;
+        items.forEach((it) => {
+          const o = document.createElement("option");
+          o.value = it;
+          o.textContent = templateLabel(it);
+          filterTemplateEl.appendChild(o);
+        });
+        if(items.includes(cur)) filterTemplateEl.value = cur;
+      }
+      async function openGeneratedEmail(emailId){
+        const detail = await API.getGeneratedEmail(emailId);
+        if(detail && detail.payload){
+          Store.setGeneration(detail.payload);
+          Store.setSessionId(detail.payload.sessionId || null);
+          Store.setGeneratedEmailId(detail.id || emailId || null);
+          window.location.href = "result.html";
+        }
+      }
+      async function downloadGeneratedEmail(emailId, subjectValue){
+        const detail = await API.getGeneratedEmail(emailId);
+        const payload = detail && detail.payload;
+        const sessionId = payload && (payload.sessionId || null);
+        if(!sessionId) throw new Error(t("result.error.noSession"));
+        const blob = await API.exportEmail(sessionId, 0, 0, 0, payload);
+        const base = (subjectValue || "smart-letters-email").replace(/[\\/:*?"<>|]+/g, "-").slice(0, 80);
+        downloadBlob(blob, base + ".html");
+      }
+      function attachMenu(btn, menu){
+        btn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          document.querySelectorAll(".row-menu-pop.open").forEach((el) => { if(el !== menu) el.classList.remove("open"); });
+          if(menu.parentElement !== document.body) document.body.appendChild(menu);
+          menu.classList.toggle("open");
+          if(menu.classList.contains("open")) positionMenu(btn, menu);
+        });
+      }
+      function renderTable(){
+        bodyMainEl.innerHTML = "";
+        const filtered = applyFilters(collectRows());
+        if(!filtered.length){
+          emptyMainEl.style.display = "block";
+          tableMainEl.style.display = "none";
+          return;
+        }
+        emptyMainEl.style.display = "none";
+        tableMainEl.style.display = "table";
+
+        filtered.forEach((r) => {
+          const tr = document.createElement("tr");
+          if(r.kind === "job" && highlightJobId && String(r.id) === highlightJobId) tr.classList.add("gen-row-highlight");
+          tr.innerHTML = `
+            <td>${formatStarted(r.startedAt)}</td>
+            <td><span class="type-pill">${r.kind === "job" ? t("generatedEmails.type.job") : t("generatedEmails.type.email")}</span></td>
+            <td class="gen-subj">${r.subject || "—"}</td>
+            <td>${templateLabel(r.templateId)}</td>
+            <td><span class="${badgeClass(r.status)}">${badgeText(r.status)}</span></td>
+            <td>${stepText(r.stepKey)}</td>
+            <td class="gen-rem">${r.remaining}</td>
+            <td class="gen-err">${r.error || ""}</td>
+            <td><div class="row-actions"></div></td>
+          `;
+          const actions = tr.querySelector(".row-actions");
+          if(r.kind === "email"){
+            const row = r.raw;
+            const menuBtn = document.createElement("button");
+            menuBtn.type = "button";
+            menuBtn.className = "menu-dot-btn";
+            menuBtn.textContent = "⋮";
+            menuBtn.title = t("generatedEmails.menu.actions");
+            const menuPop = document.createElement("div");
+            menuPop.className = "row-menu-pop";
+            const openItem = document.createElement("button");
+            openItem.className = "row-menu-item";
+            openItem.textContent = t("generatedEmails.button.open");
+            openItem.onclick = async () => { menuPop.classList.remove("open"); try{ await openGeneratedEmail(row.id); }catch(ex){ showErr(ex?.message || t("generatedEmails.error.open")); } };
+            const dlItem = document.createElement("button");
+            dlItem.className = "row-menu-item";
+            dlItem.textContent = t("result.button.download");
+            dlItem.onclick = async () => { menuPop.classList.remove("open"); try{ await downloadGeneratedEmail(row.id, row.subject || "smart-letters-email"); }catch(ex){ showErr(ex?.message || t("result.error.download")); } };
+            const delItem = document.createElement("button");
+            delItem.className = "row-menu-item danger";
+            delItem.textContent = t("generatedEmails.button.delete");
+            delItem.onclick = async () => {
+              menuPop.classList.remove("open");
+              if(!confirm(t("generatedEmails.confirm.delete"))) return;
+              try{
+                await API.deleteGeneratedEmail(row.id);
+                emailsCache = emailsCache.filter((e) => e.id !== row.id);
+                renderTemplateFilter();
+                renderTable();
+              }catch(ex){ showErr(ex?.message || t("generatedEmails.error.delete")); }
+            };
+            menuPop.append(openItem, dlItem, delItem);
+            attachMenu(menuBtn, menuPop);
+            actions.append(menuBtn, menuPop);
+          }else if(r.status === "error" && r.id){
+            const menuBtn = document.createElement("button");
+            menuBtn.type = "button";
+            menuBtn.className = "menu-dot-btn";
+            menuBtn.textContent = "⋮";
+            menuBtn.title = t("generatedEmails.menu.actions");
+            const menuPop = document.createElement("div");
+            menuPop.className = "row-menu-pop";
+            const retryItem = document.createElement("button");
+            retryItem.className = "row-menu-item";
+            retryItem.textContent = t("generatedEmails.job.retry");
+            retryItem.onclick = async () => {
+              menuPop.classList.remove("open");
+              try{ await API.retryGenerateJob(r.id); await loadJobs(); }catch(ex){ showErr(ex?.message || t("generatedEmails.job.retryError")); }
+            };
+            const removeItem = document.createElement("button");
+            removeItem.className = "row-menu-item danger";
+            removeItem.textContent = t("generatedEmails.job.remove");
+            removeItem.onclick = async () => {
+              menuPop.classList.remove("open");
+              if(!confirm(t("generatedEmails.job.confirmRemove"))) return;
+              try{
+                await API.deleteGenerateJob(r.id);
+                jobsCache = jobsCache.filter((j) => String(j.jobId || j.job_id || "") !== String(r.id));
+                renderTemplateFilter();
+                renderTable();
+              }catch(ex){ showErr(ex?.message || t("generatedEmails.job.removeError")); }
+            };
+            menuPop.append(retryItem);
+            if(r.canRequestRefund){
+              const refundItem = document.createElement("button");
+              refundItem.className = "row-menu-item";
+              refundItem.textContent = t("generatedEmails.job.requestRefund");
+              refundItem.onclick = async () => {
+                menuPop.classList.remove("open");
+                const msg = prompt(t("generatedEmails.job.refundPrompt"), "");
+                if(msg === null) return;
+                try{
+                  await API.createRefundRequest({ jobId: r.id, message: msg });
+                  alert(t("generatedEmails.job.refundSubmitted"));
+                  await loadJobs();
+                }catch(ex){ showErr(ex?.message || t("generatedEmails.job.refundError")); }
+              };
+              menuPop.append(refundItem);
+            }else if(r.refundStatus === "pending"){
+              const pendingItem = document.createElement("button");
+              pendingItem.className = "row-menu-item";
+              pendingItem.disabled = true;
+              pendingItem.textContent = t("generatedEmails.job.refundPending");
+              menuPop.append(pendingItem);
+            }else if(r.refundStatus === "auto_refunded" || r.refundStatus === "approved"){
+              const okItem = document.createElement("button");
+              okItem.className = "row-menu-item";
+              okItem.disabled = true;
+              okItem.textContent = t("generatedEmails.job.refundReturned");
+              menuPop.append(okItem);
+            }
+            menuPop.append(removeItem);
+            attachMenu(menuBtn, menuPop);
+            actions.append(menuBtn, menuPop);
+          }else{
+            actions.textContent = "—";
+          }
+          bodyMainEl.appendChild(tr);
+        });
+      }
+
+      async function loadJobs(){
+        errMainEl.style.display = "none";
+        try{
+          const rowsRaw = await API.getGenerateJobs(100);
+          jobsCache = Array.isArray(rowsRaw) ? rowsRaw : [];
+          renderTemplateFilter();
+          renderTable();
+          return jobsCache;
+        }catch(ex){
+          showErr(ex?.message || t("status.error.poll"));
+          return [];
+        }
+      }
+      async function loadEmails(){
+        try{
+          const rowsRaw = await API.getGeneratedEmails();
+          emailsCache = Array.isArray(rowsRaw) ? rowsRaw : [];
+          renderTemplateFilter();
+          renderTable();
+        }catch(ex){ showErr(ex?.message || t("generatedEmails.error.load")); }
+      }
+      let jobsTimer = null;
+      async function tickJobs(){
+        const rows = await loadJobs();
+        await loadEmails();
+        if(jobsTimer) clearTimeout(jobsTimer);
+        jobsTimer = setTimeout(tickJobs, hasActive(rows) ? 3500 : 12000);
+      }
+      [filterSubjectEl, filterTemplateEl, filterStatusEl, filterDateFromEl, filterDateToEl, filterErrorOnlyEl]
+        .forEach((el) => el.addEventListener("input", renderTable));
+      window.addEventListener("taskflock-language-changed", () => {
+        if(typeof applyTranslations === "function") applyTranslations();
+        renderTemplateFilter();
+        renderTable();
+      });
+      await loadEmails();
+      void tickJobs();
+    })();
+  </script>
+</body>
+</html>

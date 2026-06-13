@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.company">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Компания</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+  <main class="container container-narrow page-shell">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+    <header class="page-header">
+      <h1 class="h2" data-i18n="company.title">Company details</h1>
+      <p class="p page-subtitle" data-i18n="company.subtitle">Fill in the data used to generate emails.</p>
+    </header>
+    <div class="spacer-2"></div>
+    <div class="spacer-6"></div>
+
+    <form id="company-form" class="page-form">
+      <div>
+        <label class="label" data-i18n="company.label.name">Название компании *</label>
+        <input class="input" name="companyName" />
+        <p class="error" id="err-companyName" style="display:none;"></p>
+      </div>
+
+      <div>
+        <label class="label" data-i18n="company.label.niche">Ниша компании и другая важная информация о компании *</label>
+        <input class="input" name="niche" />
+        <p class="error" id="err-niche" style="display:none;"></p>
+      </div>
+
+      <div>
+        <label class="label" data-i18n="company.label.description">Описание продуктов или услуг компании *</label>
+        <textarea class="textarea" rows="4" name="productDescription"></textarea>
+        <p class="error" id="err-productDescription" style="display:none;"></p>
+      </div>
+
+      <div>
+        <label class="label" data-i18n="company.label.logo">Логотип</label>
+        <input class="file" type="file" accept="image/*" id="logoFile" />
+        <div class="spacer-2"></div>
+        <div id="logoPreviewWrap" style="display:none; width:96px; height:96px; border-radius:10px; overflow:hidden; border:1px solid var(--border);">
+          <img id="logoPreview" alt="" data-i18n="company.logo.alt" style="width:100%;height:100%;object-fit:contain;display:block;" />
+        </div>
+      </div>
+
+      <div>
+        <label class="label" data-i18n="company.label.email">Почта компании</label>
+        <input class="input" name="email" type="email" />
+      </div>
+
+      <div>
+        <label class="label" data-i18n="company.label.phone">Телефон</label>
+        <input class="input" name="phone" type="tel" />
+      </div>
+
+      <div>
+        <label class="label" data-i18n="company.label.website">Сайт компании</label>
+        <input class="input" name="website" type="url" />
+      </div>
+
+      <div>
+        <label class="label" data-i18n="company.label.senderEmail">Sender email</label>
+        <input class="input" name="senderEmail" type="email" />
+      </div>
+
+      <div>
+        <label class="label" data-i18n="company.label.senderName">Sender name</label>
+        <input class="input" name="senderName" />
+      </div>
+      <div class="row" style="gap:8px; align-items:center;">
+        <button id="verifySenderBtn" class="btn btn-outline" type="button" data-i18n="company.button.verifySender">Verify sender</button>
+        <span id="senderVerifyState" class="small muted"></span>
+      </div>
+
+      <p id="company-autosave" class="small muted" style="margin:0;"></p>
+
+      <p id="company-error" class="error" style="display:none;"></p>
+
+      <button class="btn btn-primary" id="company-submit" type="submit" style="width:100%;" data-i18n="company.button.next">Далее</button>
+    </form>
+  </main>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    console.log("company page script start");
+    (function(){
+      console.log("requireAuth:", requireAuth());
+      if(!requireAuth()) return;
+
+      const form = document.getElementById("company-form");
+      const btn = document.getElementById("company-submit");
+      const err = document.getElementById("company-error");
+      const logoInput = document.getElementById("logoFile");
+      const logoWrap = document.getElementById("logoPreviewWrap");
+      const logoImg = document.getElementById("logoPreview");
+      const verifySenderBtn = document.getElementById("verifySenderBtn");
+      const senderVerifyState = document.getElementById("senderVerifyState");
+
+      let logoFile = null;
+      let autosaveTimer = null;
+      let autosaveInFlight = false;
+      let pendingAutosave = false;
+      const autosaveHint = document.getElementById("company-autosave");
+
+      function showFieldError(name, msg){
+        const el = document.getElementById("err-" + name);
+        if(!el) return;
+        if(msg){
+          el.textContent = msg;
+          el.style.display = "block";
+        }else{
+          el.style.display = "none";
+          el.textContent = "";
+        }
+      }
+
+      function currentDict(){
+        const lang = Store.getLanguage();
+        return I18N[lang] || {};
+      }
+
+      function setAutosaveText(text){
+        if(autosaveHint) autosaveHint.textContent = text || "";
+      }
+
+      function collectFormData(){
+        const data = Object.fromEntries(new FormData(form).entries());
+        return {
+          companyName: String(data.companyName || "").trim(),
+          niche: String(data.niche || "").trim(),
+          productDescription: String(data.productDescription || "").trim(),
+          logoUrl: String(data.logoUrl || ""),
+          email: String(data.email || "").trim(),
+          phone: String(data.phone || "").trim(),
+          website: String(data.website || "").trim(),
+          senderEmail: String(data.senderEmail || "").trim(),
+          senderName: String(data.senderName || "").trim(),
+        };
+      }
+
+      function validateRequired(data, show=false){
+        const dict = currentDict();
+        let ok = true;
+        const checks = [
+          ["companyName", dict["company.error.name"] || "Введите название компании"],
+          ["niche", dict["company.error.niche"] || "Введите нишу"],
+          ["productDescription", dict["company.error.description"] || "Введите описание продукта или услуги"],
+        ];
+        checks.forEach(([k,msg]) => {
+          const valid = !!String(data[k] || "").trim();
+          if(show) showFieldError(k, valid ? "" : msg);
+          if(!valid) ok = false;
+        });
+        return ok;
+      }
+
+      async function runAutosave(force=false){
+        if(autosaveInFlight){
+          pendingAutosave = true;
+          return;
+        }
+        const data = collectFormData();
+        const isValid = validateRequired(data, false);
+        if(!isValid && !force){
+          setAutosaveText("");
+          return;
+        }
+
+        const dict = currentDict();
+        autosaveInFlight = true;
+        setAutosaveText(dict["company.button.saving"] || "Сохранение…");
+        try{
+          let finalLogoUrl = data.logoUrl || "";
+          if(logoFile){
+            const up = await API.uploadLogo(logoFile);
+            finalLogoUrl = up.url || "";
+            logoFile = null;
+            data.logoUrl = finalLogoUrl;
+          }
+          const updated = await API.updateCompany({
+            companyName: data.companyName,
+            niche: data.niche,
+            productDescription: data.productDescription,
+            logoUrl: finalLogoUrl,
+            email: data.email || undefined,
+            phone: data.phone || undefined,
+            website: data.website || undefined,
+            senderEmail: data.senderEmail || undefined,
+            senderName: data.senderName || undefined,
+          });
+          Store.setCompany(updated);
+          setAutosaveText(dict["company.status.saved"] || "Сохранено");
+        }catch(ex){
+          err.textContent = (ex && ex.message) ? ex.message : (dict["company.error.save"] || "Ошибка сохранения");
+          err.style.display = "block";
+          setAutosaveText(dict["company.error.save"] || "Ошибка сохранения");
+        }finally{
+          autosaveInFlight = false;
+          if(pendingAutosave){
+            pendingAutosave = false;
+            void runAutosave(false);
+          }
+        }
+      }
+
+      function scheduleAutosave(){
+        clearTimeout(autosaveTimer);
+        autosaveTimer = setTimeout(() => { void runAutosave(false); }, 700);
+      }
+
+      // load company
+      (async () => {
+        const c = await API.getCompany();
+        Store.setCompany(c);
+        for(const [k,v] of Object.entries(c)){
+          const input = form.querySelector('[name="'+k+'"]');
+          if(input) input.value = v ?? "";
+        }
+        senderVerifyState.textContent = c.senderVerified ? t("company.sender.verified") : t("company.sender.notVerified");
+        if(c.logoUrl){
+          logoImg.src = c.logoUrl;
+          logoWrap.style.display = "block";
+        }
+      })();
+
+      logoInput.addEventListener("change", (e) => {
+        const f = e.target.files && e.target.files[0];
+        if(!f) return;
+        if(!f.type.startsWith("image/")){
+          const lang = Store.getLanguage();
+          const dict = I18N[lang] || {};
+          err.textContent = dict["company.error.selectImage"] || "Выберите изображение";
+          err.style.display = "block";
+          return;
+        }
+        err.style.display = "none";
+        logoFile = f;
+        const url = URL.createObjectURL(f);
+        logoImg.src = url;
+        logoWrap.style.display = "block";
+        // revoke on next change
+        scheduleAutosave();
+      });
+
+      form.querySelectorAll("input, textarea").forEach((el) => {
+        if(el.id === "logoFile") return;
+        el.addEventListener("input", scheduleAutosave);
+        el.addEventListener("blur", () => { void runAutosave(false); });
+      });
+
+      verifySenderBtn.addEventListener("click", async () => {
+        err.style.display = "none";
+        verifySenderBtn.disabled = true;
+        verifySenderBtn.textContent = t("company.sender.checking");
+        try{
+          await runAutosave(true);
+          const res = await API.verifyCompanySender();
+          senderVerifyState.textContent = res?.senderVerified ? t("company.sender.verified") : t("company.sender.notVerified");
+        }catch(ex){
+          err.textContent = ex?.message || t("company.sender.verifyFailed");
+          err.style.display = "block";
+        }finally{
+          verifySenderBtn.disabled = false;
+          verifySenderBtn.textContent = t("company.button.verifySender");
+        }
+      });
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        err.style.display = "none";
+        document.querySelectorAll('[id^="err-"]').forEach(x => (x.style.display="none"));
+        const data = collectFormData();
+        const dict = currentDict();
+        const ok = validateRequired(data, true);
+        if(!ok) return;
+        btn.disabled = true;
+        btn.textContent = dict["company.button.saving"] || "Сохранение…";
+        try{
+          await runAutosave(true);
+          window.location.href = "params.html";
+        }catch(ex){
+          err.textContent = (ex && ex.message) ? ex.message : (dict["company.error.save"] || "Ошибка сохранения");
+          err.style.display = "block";
+        }finally{
+          btn.disabled = false;
+          btn.textContent = dict["company.button.next"] || "Далее";
+        }
+      });
+
+      window.addEventListener("taskflock-language-changed", () => {
+        if(typeof applyTranslations === "function") applyTranslations();
+        verifySenderBtn.textContent = t("company.button.verifySender");
+      });
+    })();
+  </script>
+  
+</body>
+</html>

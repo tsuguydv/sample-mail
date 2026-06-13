@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.payments">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Tokens &amp; billing</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <main class="container container-narrow page-shell">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+    <header class="page-header">
+      <h1 class="h2" data-i18n="payments.title">Tokens &amp; billing</h1>
+      <p class="p page-subtitle">
+        <span data-i18n="payments.subtitle">Pay with PayPal.</span>
+        <a href="terms.html#tokens" data-i18n="payments.policyLink">Token &amp; refund policy</a>
+      </p>
+    </header>
+    <div class="card card-pad page-form" id="plan-card">
+      <div style="font-size:20px; font-weight:700;" id="plan-name">—</div>
+      <div class="muted" id="plan-price">—</div>
+      <ul class="small muted" style="margin:0; padding-left:18px;">
+        <li id="plan-tokens-line">—</li>
+        <li id="plan-cost-line">—</li>
+        <li data-i18n="payments.plan.freeLine">Free plan: 1 generation per day</li>
+        <li id="plan-refine-line" data-i18n="payments.plan.refineLine">Refinements use tokens</li>
+      </ul>
+      <p id="billing-status" class="small muted" data-i18n="payments.status.loading">Loading…</p>
+      <p id="billing-error" class="error" style="display:none;"></p>
+      <div class="page-actions">
+        <button id="subscribe-btn" class="btn btn-primary" type="button" data-i18n="payments.button.buy">Buy with PayPal</button>
+        <a class="btn btn-outline" href="account-settings.html" data-i18n="common.back">Back</a>
+      </div>
+    </div>
+  </main>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (async function(){
+      window.location.replace("plans.html");
+      return;
+      if(!requireAuth()) return;
+      const statusEl = document.getElementById("billing-status");
+      const errEl = document.getElementById("billing-error");
+      const btn = document.getElementById("subscribe-btn");
+      let selectedPlanId = "";
+
+      function fmt(n){ return Number(n || 0).toLocaleString(); }
+
+      async function loadStatus(){
+        errEl.style.display = "none";
+        statusEl.setAttribute("data-i18n-skip", "1");
+        statusEl.textContent = t("payments.status.loading");
+        try{
+          const s = await API.getBillingStatus();
+          const plan = s.primaryPlan || (s.plans && s.plans[0]) || null;
+          if(plan){
+            selectedPlanId = plan.id || "";
+            const nameEl = document.getElementById("plan-name");
+            const priceEl = document.getElementById("plan-price");
+            const tokensLine = document.getElementById("plan-tokens-line");
+            if(nameEl) nameEl.textContent = plan.name || "—";
+            if(priceEl) priceEl.textContent = (plan.displayPrice || "") + " / " + (plan.cycleLabel || "month");
+            if(tokensLine) tokensLine.textContent = t("payments.plan.tokensPerMonth", { n: fmt(plan.tokens) });
+          }
+          const perGen = s.tokensPerGeneration || 30;
+          const costLine = document.getElementById("plan-cost-line");
+          if(costLine) costLine.textContent = t("payments.plan.costPerGen", { n: perGen });
+          const refineLine = document.getElementById("plan-refine-line");
+          if(refineLine){
+            refineLine.setAttribute("data-i18n-skip", "1");
+            refineLine.textContent = t("payments.plan.refineLine", { n: perGen });
+          }
+          statusEl.textContent = t("payments.status.summary", {
+            bal: fmt(s.tokenBalance),
+            free: String(s.freeGenerationsRemainingToday ?? 0),
+            per: String(perGen),
+          });
+          btn.textContent = (s.tokenBalance || 0) >= perGen ? t("payments.button.buyMore") : t("payments.button.buy");
+        }catch(ex){
+          statusEl.textContent = t("payments.status.errorLoad");
+          errEl.textContent = ex?.message || t("payments.status.errorBilling");
+          errEl.style.display = "block";
+        }
+      }
+
+      btn.addEventListener("click", async () => {
+        errEl.style.display = "none";
+        btn.disabled = true;
+        const prev = btn.textContent;
+        btn.textContent = t("payments.button.redirecting");
+        try{
+          const res = await API.createPaypalSubscription(selectedPlanId ? { planId: selectedPlanId } : {});
+          if(!res?.approveUrl) throw new Error(t("payments.error.noUrl"));
+          window.location.href = res.approveUrl;
+        }catch(ex){
+          errEl.textContent = ex?.message || t("payments.error.init");
+          errEl.style.display = "block";
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      });
+
+      window.addEventListener("taskflock-language-changed", () => { void loadStatus(); });
+      await loadStatus();
+    })();
+  </script>
+</body>
+</html>

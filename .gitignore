@@ -1,0 +1,5 @@
+/backend/venv
+.aider*
+__pycache__/
+*.py[cod]
+*.pyo

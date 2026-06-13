@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.builder">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Builder</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <style>
+    .builder-grid{
+      display:grid;
+      grid-template-columns:minmax(220px,280px) minmax(260px,340px) 1fr;
+      gap:16px;
+      align-items:start;
+    }
+    .builder-panel{
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:var(--card);
+      padding:12px;
+      max-height:calc(100vh - 180px);
+      overflow:auto;
+    }
+    .block-palette-item{
+      display:block;
+      width:100%;
+      text-align:left;
+      border:1px solid var(--border);
+      border-radius:8px;
+      background:var(--surface);
+      padding:8px 10px;
+      margin-bottom:8px;
+      cursor:pointer;
+    }
+    .block-palette-item:hover{ border-color:var(--primary); }
+    .block-palette-item strong{ display:block; font-size:13px; }
+    .block-palette-item span{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+    .layout-item{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:8px;
+      margin-bottom:8px;
+      background:var(--surface);
+    }
+    .layout-item.is-active{ border-color:var(--primary); box-shadow:inset 0 0 0 1px var(--primary); }
+    .layout-item-name{ flex:1; font-weight:600; font-size:13px; }
+    .layout-actions{ display:flex; gap:4px; flex-wrap:wrap; }
+    .layout-actions button{
+      border:1px solid var(--border);
+      background:var(--card);
+      border-radius:6px;
+      padding:4px 8px;
+      font-size:11px;
+      cursor:pointer;
+    }
+    .preview-frame-wrap{
+      border:1px solid var(--border);
+      border-radius:10px;
+      overflow:auto;
+      background:#e5e7eb;
+      max-height:calc(100vh - 180px);
+      padding:16px;
+    }
+    .preview-inner{ max-width:640px; margin:0 auto; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 4px 24px rgba(15,23,42,.08); }
+    #preview-frame{ width:100%; border:0; min-height:400px; display:block; background:#fff; }
+    @media (max-width:1100px){
+      .builder-grid{ grid-template-columns:1fr; }
+      .builder-panel, .preview-frame-wrap{ max-height:none; }
+      #preview-frame{ min-height:520px; height:520px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container page-shell">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company</a>
+      <a href="my-templates.html" data-i18n="nav.templates">Templates</a>
+      <a href="params.html" data-i18n="nav.generate">Generate</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Emails</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account</a>
+    </nav>
+
+    <header class="page-header">
+      <a href="index.html" style="display:inline-block; font-size:22px; font-weight:800; color:var(--primary); text-decoration:none; margin-bottom:8px;">smart-letters</a>
+      <h1 class="h2" data-i18n="builder.title">Email builder</h1>
+      <p class="p page-subtitle" data-i18n="builder.subtitle">Assemble your email from blocks.</p>
+    </header>
+
+    <div class="row" style="gap:12px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+      <input id="template-name" class="input" style="min-width:200px; max-width:320px;" placeholder="Template name" data-i18n-placeholder="myTemplates.namePlaceholder" />
+      <button type="button" class="btn btn-outline" id="btn-save-template" data-i18n="myTemplates.save">Save template</button>
+      <select id="preset-select" class="select" style="min-width:220px;"></select>
+      <button type="button" class="btn btn-outline" id="btn-load-preset" data-i18n="builder.loadPreset">Load preset</button>
+      <a class="btn btn-outline" href="my-templates.html" data-i18n="nav.templates">Templates</a>
+      <button type="button" class="btn btn-primary" id="btn-use-layout" data-i18n="builder.useLayout">Use for generation</button>
+    </div>
+
+    <p id="builder-error" class="error" role="alert" style="display:none;"></p>
+
+    <div class="builder-grid">
+      <section class="builder-panel">
+        <h2 class="h4" data-i18n="builder.palette">Blocks</h2>
+        <div id="palette"></div>
+      </section>
+      <section class="builder-panel">
+        <h2 class="h4" data-i18n="builder.layout">Email structure</h2>
+        <p id="layout-empty" class="muted small" data-i18n="builder.emptyLayout">Add blocks from the palette.</p>
+        <div id="layout-list"></div>
+      </section>
+      <section class="preview-frame-wrap">
+        <div class="preview-inner">
+          <iframe id="preview-frame" title="Preview"></iframe>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="assets/email-preview.js"></script>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (function(){
+      if(!requireAuth()) return;
+
+      const paletteEl = document.getElementById("palette");
+      const layoutList = document.getElementById("layout-list");
+      const layoutEmpty = document.getElementById("layout-empty");
+      const frame = document.getElementById("preview-frame");
+      const err = document.getElementById("builder-error");
+      const presetSelect = document.getElementById("preset-select");
+      const btnLoadPreset = document.getElementById("btn-load-preset");
+      const btnUse = document.getElementById("btn-use-layout");
+      const btnSaveTemplate = document.getElementById("btn-save-template");
+      const templateNameInput = document.getElementById("template-name");
+      const params = new URLSearchParams(location.search);
+      const editId = params.get("id");
+      const presetId = params.get("preset");
+      let editingUserTemplateId = editId ? Number(editId) : null;
+
+      let blocksCatalog = [];
+      let templates = [];
+      let layout = [];
+      let previewTimer = null;
+      const SL_THEME = { primary: "#4f46e5", secondary: "#4338ca", accent: "#e0e7ff", surface: "#ffffff", colorScheme: "light" };
+
+      function defaultLayout(){
+        return [
+          { name: "header", context: {} },
+          { name: "hero", context: {} },
+          { name: "text", context: {} },
+          { name: "cta", context: {} },
+          { name: "footer", context: {} },
+        ];
+      }
+
+      function loadLayoutFromStore(){
+        const saved = Store.getCustomBlockLayout();
+        if(Array.isArray(saved) && saved.length) layout = saved.map(b => ({ name: b.name, context: b.context || {} }));
+        else layout = defaultLayout();
+      }
+
+      function saveLayoutToStore(){
+        Store.setCustomBlockLayout(layout);
+      }
+
+      function showError(msg){
+        err.textContent = msg || "";
+        err.style.display = msg ? "block" : "none";
+      }
+
+      function renderPalette(){
+        paletteEl.innerHTML = "";
+        blocksCatalog.forEach((b) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "block-palette-item";
+          btn.innerHTML = `<strong>${escHtml(blockDisplayName(b.name))}</strong><span>${escHtml(b.description || "")}</span>`;
+          btn.addEventListener("click", () => {
+            layout.push({ name: b.name, context: {} });
+            saveLayoutToStore();
+            renderLayout();
+            queuePreview();
+          });
+          paletteEl.appendChild(btn);
+        });
+      }
+
+      function renderLayout(){
+        layoutList.innerHTML = "";
+        layoutEmpty.style.display = layout.length ? "none" : "block";
+        layout.forEach((item, idx) => {
+          const row = document.createElement("div");
+          row.className = "layout-item";
+          row.innerHTML = `
+            <div class="layout-item-name">${escHtml(blockDisplayName(item.name))}</div>
+            <div class="layout-actions">
+              <button type="button" data-act="up" title="${t("builder.moveUp")}">↑</button>
+              <button type="button" data-act="down" title="${t("builder.moveDown")}">↓</button>
+              <button type="button" data-act="remove" title="${t("builder.remove")}">×</button>
+            </div>
+          `;
+          row.querySelector('[data-act="up"]').disabled = idx === 0;
+          row.querySelector('[data-act="down"]').disabled = idx === layout.length - 1;
+          row.querySelector('[data-act="up"]').addEventListener("click", () => {
+            if(idx <= 0) return;
+            const tmp = layout[idx - 1];
+            layout[idx - 1] = layout[idx];
+            layout[idx] = tmp;
+            saveLayoutToStore();
+            renderLayout();
+            queuePreview();
+          });
+          row.querySelector('[data-act="down"]').addEventListener("click", () => {
+            if(idx >= layout.length - 1) return;
+            const tmp = layout[idx + 1];
+            layout[idx + 1] = layout[idx];
+            layout[idx] = tmp;
+            saveLayoutToStore();
+            renderLayout();
+            queuePreview();
+          });
+          row.querySelector('[data-act="remove"]').addEventListener("click", () => {
+            layout.splice(idx, 1);
+            saveLayoutToStore();
+            renderLayout();
+            queuePreview();
+          });
+          layoutList.appendChild(row);
+        });
+      }
+
+      function fillPresets(){
+        presetSelect.innerHTML = "";
+        const modular = templates.filter(tpl => tpl.isModular && tpl.id !== "custom");
+        modular.forEach((tpl) => {
+          const opt = document.createElement("option");
+          opt.value = tpl.id;
+          const dict = I18N[Store.getLanguage()] || {};
+          opt.textContent = dict[tpl.name] || tpl.name;
+          presetSelect.appendChild(opt);
+        });
+      }
+
+      btnLoadPreset.addEventListener("click", () => {
+        const id = presetSelect.value;
+        const tpl = templates.find(x => x.id === id);
+        if(!tpl || !Array.isArray(tpl.blockLayout)) return;
+        layout = tpl.blockLayout.map(b => ({ name: b.name, context: b.context || {} }));
+        saveLayoutToStore();
+        renderLayout();
+        queuePreview();
+      });
+
+      btnUse.addEventListener("click", () => {
+        if(!layout.length){
+          showError(t("builder.emptyLayout"));
+          return;
+        }
+        saveLayoutToStore();
+        const customTpl = templates.find(x => x.id === "custom") || {
+          id: "custom",
+          name: "template.custom",
+          isModular: true,
+          objectCounts: { header: 1, body: 1, image: 1, cta: 1, footer: 1 },
+          theme: { primary: "#4f46e5", secondary: "#4338ca", accent: "#e0e7ff", surface: "#ffffff", colorScheme: "light" },
+        };
+        Store.setSelectedTemplate({
+          ...customTpl,
+          blockLayout: layout.map(b => ({ name: b.name, context: b.context || {} })),
+        });
+        window.location.href = "templates.html";
+      });
+
+      async function refreshPreview(){
+        if(!layout.length){ frame.srcdoc = ""; return; }
+        try{
+          const emailParams = Store.getEmailParams() || {};
+          const selected = Store.getSelectedTemplate() || {};
+          const company = Store.getCompany() || {};
+          const subject = emailParams.subject || t("builder.previewSubject");
+          const html = await API.renderTemplatePreview({
+            blockLayout: layout,
+            subject: subject,
+            theme: { ...SL_THEME, ...(selected.theme || {}) },
+            bodyHtml: t("builder.previewBody"),
+            ctaLink: emailParams.ctaLink || "#",
+            ctaLabel: t("builder.previewCta"),
+          });
+          frame.srcdoc = EmailPreview.wrapModularBlocks(html);
+          showError("");
+          frame.onload = () => EmailPreview.resizeFrame(frame);
+        }catch(ex){
+          showError(ex && ex.message ? ex.message : t("common.error.previewFailed"));
+        }
+      }
+
+      function queuePreview(){
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(refreshPreview, 350);
+      }
+
+      btnSaveTemplate.addEventListener("click", async () => {
+        const name = (templateNameInput.value || "").trim();
+        if(!name){ showError(t("myTemplates.nameRequired") || "Enter a template name"); return; }
+        if(!layout.length){ showError(t("builder.emptyLayout")); return; }
+        try{
+          const payload = {
+            name,
+            baseTemplateId: presetId || "custom",
+            isModular: true,
+            blockLayout: layout.map(b => ({ name: b.name, context: b.context || {} })),
+            theme: { ...SL_THEME },
+          };
+          if(editingUserTemplateId){
+            await API.updateUserTemplate(editingUserTemplateId, payload);
+          }else{
+            const created = await API.createUserTemplate(payload);
+            editingUserTemplateId = created && created.id;
+          }
+          saveLayoutToStore();
+          showError("");
+          window.location.href = "my-templates.html";
+        }catch(ex){
+          const msg = ex && ex.message ? ex.message : "";
+          if(msg.includes("Template limit")) showError(t("common.error.templateLimit"));
+          else showError(msg || t("common.error.saveFailed"));
+        }
+      });
+
+      (async function init(){
+        loadLayoutFromStore();
+        try{
+          const [blocks, tpls] = await Promise.all([
+            API.getBlocks(),
+            API.getTemplates(),
+          ]);
+          blocksCatalog = Array.isArray(blocks) ? blocks : [];
+          templates = Array.isArray(tpls) ? tpls : [];
+        }catch(ex){
+          showError(ex && ex.message ? ex.message : t("common.error.loadFailed"));
+        }
+        if(editingUserTemplateId){
+          try{
+            const row = await API.getUserTemplate(editingUserTemplateId);
+            templateNameInput.value = row.name || "";
+            layout = (row.blockLayout || []).map(b => ({ name: b.name, context: b.context || {} }));
+            saveLayoutToStore();
+          }catch(ex){
+            showError(ex.message);
+          }
+        }else if(presetId){
+          const tpl = templates.find(x => x.id === presetId);
+          if(tpl && tpl.blockLayout){
+            layout = tpl.blockLayout.map(b => ({ name: b.name, context: b.context || {} }));
+            templateNameInput.value = (I18N[Store.getLanguage()] || {})[tpl.name] || tpl.name || "";
+            saveLayoutToStore();
+          }
+        }
+        renderPalette();
+        fillPresets();
+        renderLayout();
+        queuePreview();
+      })();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.result">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Результат</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <style>
+    .result-layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 380px) 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .editor-pane {
+      max-height: calc(100vh - 160px);
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+    .editor-hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 12px;
+      line-height: 1.45;
+    }
+    .preview-shell {
+      position: sticky;
+      top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #e5e7eb;
+      max-height: calc(100vh - 160px);
+      overflow: auto;
+      padding: 16px;
+    }
+    .preview-inner {
+      max-width: 640px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+    #preview-frame {
+      display: block;
+      width: 100%;
+      border: 0;
+      min-height: 400px;
+      background: #fff;
+    }
+    .editor-item {
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+      background: var(--card);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .editor-item.is-active { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+    .editor-toggle {
+      width: 100%; border: 0; background: transparent; color: var(--text);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px; cursor: pointer; font-weight: 600; text-align: left; font-size: 14px;
+    }
+    .editor-toggle:hover { background: var(--surface); }
+    .editor-arrow { transition: transform .15s ease; opacity: .6; }
+    .editor-item.open .editor-arrow { transform: rotate(180deg); }
+    .editor-panel { display: none; padding: 0 12px 12px; }
+    .editor-item.open .editor-panel { display: block; }
+    @media (max-width: 1100px) {
+      .result-layout { grid-template-columns: 1fr; }
+      .preview-shell { position: static; max-height: none; }
+      .editor-pane { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container page-shell">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company</a>
+      <a href="my-templates.html" data-i18n="nav.templates">Templates</a>
+      <a href="params.html" data-i18n="nav.generate">Generate</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Emails</a>
+      <a href="contacts.html" data-i18n="nav.contacts">Contacts</a>
+      <a href="campaigns.html" data-i18n="nav.campaigns">Campaigns</a>
+      <a href="analytics.html" data-i18n="nav.analytics">Analytics</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account</a>
+    </nav>
+
+    <div id="empty" class="center-screen" style="display:none; min-height:60vh;">
+      <div style="text-align:center;">
+        <p class="muted" style="margin:0 0 12px;" data-i18n="result.empty.text">Нет данных письма.</p>
+        <a href="templates.html" data-i18n="result.empty.link">К выбору шаблона</a>
+      </div>
+    </div>
+
+    <div id="content" style="display:none;">
+      <div class="row" style="justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h1 class="h2" data-i18n="result.title">Final email</h1>
+          <p class="p page-subtitle" style="margin:4px 0 0;" data-i18n="result.subtitleNew">Edit only the sections in your email. Preview updates live.</p>
+        </div>
+        <div class="row" style="gap:8px; flex-wrap:wrap;">
+          <a class="btn btn-outline" href="my-templates.html" data-i18n="nav.templates">Templates</a>
+          <button class="btn btn-outline" id="btn-save" type="button" data-i18n="result.button.save">Save</button>
+          <button class="btn btn-outline" id="btn-save-copy" type="button" data-i18n="result.button.saveCopy">Save copy</button>
+          <button class="btn btn-primary" id="btn-download" type="button" data-i18n="result.button.download">Download</button>
+          <a class="btn btn-outline" href="generated-emails.html" data-i18n="result.button.back">Back</a>
+        </div>
+      </div>
+      <div class="spacer-4"></div>
+      <div class="result-layout">
+        <section class="editor-pane">
+          <p class="editor-hint" data-i18n="result.editor.hint">Each section below matches a block in your email. Open a section to edit it.</p>
+          <div id="editor-host"></div>
+        </section>
+        <section class="preview-shell">
+          <div class="preview-inner">
+            <iframe id="preview-frame" title="Email preview"></iframe>
+          </div>
+        </section>
+      </div>
+      <p id="result-error" class="error" role="alert" style="display:none; margin-top:10px;"></p>
+    </div>
+  </main>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script src="assets/email-preview.js"></script>
+  <script src="assets/email-editor.js"></script>
+  <script>
+    (function(){
+      if(!requireAuth()) return;
+
+      const generation = Store.getGeneration();
+      const sessionId = Store.getSessionId();
+      let generatedEmailId = Store.getGeneratedEmailId();
+      const empty = document.getElementById("empty");
+      const content = document.getElementById("content");
+      if(!generation){ empty.style.display = "flex"; return; }
+      content.style.display = "block";
+
+      const isModular = !!(generation.isModular && Array.isArray(generation.blockLayout) && generation.blockLayout.length);
+      const imageOptions = generation.imageOptions || [];
+      const textOptions = generation.textOptions || [];
+      const ctaOptions = generation.ctaOptions || [];
+      let imageIndex = generation._imageIndex != null ? generation._imageIndex : Store.getImageIndex();
+      let textIndex = Store.getTextIndex();
+      let ctaIndex = generation._ctaIndex != null ? generation._ctaIndex : Store.getCtaIndex();
+      imageIndex = Math.max(0, Math.min(imageIndex, Math.max(0, imageOptions.length - 1)));
+      ctaIndex = Math.max(0, Math.min(ctaIndex, Math.max(0, ctaOptions.length - 1)));
+
+      const state = generation.resultEditor || {};
+      const styleState = state.styles || {};
+      generation.resultEditor = state;
+      state.styles = styleState;
+
+      const error = document.getElementById("result-error");
+      const btnSave = document.getElementById("btn-save");
+      const btnSaveCopy = document.getElementById("btn-save-copy");
+      const btnDownload = document.getElementById("btn-download");
+      const frame = document.getElementById("preview-frame");
+      const editorHost = document.getElementById("editor-host");
+
+      let blocksCatalog = [];
+      let editorApi = null;
+      let unbindPreview = null;
+      let visibleClassicSlots = [];
+
+      function persistLocal(){
+        generation._imageIndex = imageIndex;
+        generation._ctaIndex = ctaIndex;
+        Store.setImageIndex(imageIndex);
+        Store.setTextIndex(textIndex);
+        Store.setCtaIndex(ctaIndex);
+        Store.setGeneration(generation);
+      }
+
+      function syncServer(){
+        if(!sessionId) return Promise.resolve();
+        return API.putGenerationSession(sessionId, generation).catch(() => {});
+      }
+
+      let renderTimer = null;
+      let syncTimer = null;
+      function queueChange(){
+        persistLocal();
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(() => syncServer().then(() => queueRender(0)), 250);
+      }
+
+      function applyClassicStyles(doc){
+        ["page","heading","logo","image","body","cta","footer"].forEach((slot) => {
+          const el = doc.querySelector(`[data-edit-slot="${slot}"]`);
+          if(!el) return;
+          const st = styleState[slot] || {};
+          if(st.align) el.style.textAlign = st.align;
+          if(st.color) el.style.color = st.color;
+          if(st.bg) el.style.background = st.bg;
+          if(st.font) el.style.fontFamily = st.font;
+          if(st.size) el.style.fontSize = `${Number(st.size)}px`;
+        });
+      }
+
+      async function buildExportHtml(){
+        const blob = await API.exportEmail(sessionId, imageIndex, textIndex, ctaIndex, generation);
+        let html = await blob.text();
+        if(isModular) html = EmailPreview.wrapModularBlocks(html);
+        const doc = EmailPreview.parseHtml(html);
+        EmailPreview.injectHelperStyles(doc);
+        if(!isModular) applyClassicStyles(doc);
+        return EmailPreview.serializeDoc(doc);
+      }
+
+      function queueRender(ms){
+        clearTimeout(renderTimer);
+        renderTimer = setTimeout(async () => {
+          try{
+            if(!sessionId){ frame.srcdoc = ""; return; }
+            const html = await buildExportHtml();
+            frame.srcdoc = html;
+          }catch(e){ /* ignore transient */ }
+        }, ms);
+      }
+
+      frame.addEventListener("load", () => {
+        EmailPreview.resizeFrame(frame);
+        if(unbindPreview) unbindPreview();
+        unbindPreview = EmailPreview.bindHighlights(frame, (target) => {
+          if(isModular && target.blockIndex != null && editorApi && editorApi.focusTarget){
+            editorApi.focusTarget({ type: "block", blockIndex: target.blockIndex });
+          } else if(target.slot && editorApi && editorApi.focusSlot){
+            editorApi.focusSlot(target.slot);
+          } else if(target.slot && editorApi && editorApi.focusTarget){
+            editorApi.focusTarget({ type: "subject" });
+          }
+        });
+        if(!isModular && !visibleClassicSlots.length){
+          visibleClassicSlots = EmailPreview.detectClassicSlots(frame.srcdoc || "");
+          initEditor();
+        }
+      });
+
+      function initEditor(){
+        editorHost.innerHTML = "";
+        if(isModular){
+          editorApi = EmailEditor.buildModularEditor(editorHost, {
+            generation,
+            blocksCatalog,
+            onChange: queueChange,
+            onFocusBlock: (t) => {
+              if(t.type === "block") EmailPreview.setActiveTarget(frame, { blockIndex: t.blockIndex });
+            },
+          });
+        }else{
+          editorApi = EmailEditor.buildClassicEditor(editorHost, {
+            generation,
+            visibleSlots: visibleClassicSlots,
+            styleState,
+            onChange: queueChange,
+            onFocusSlot: (slot) => EmailPreview.setActiveTarget(frame, { slot }),
+          });
+        }
+      }
+
+      async function init(){
+        try{
+          if(isModular) blocksCatalog = await API.getBlocks();
+        }catch(e){ blocksCatalog = []; }
+        if(isModular){
+          initEditor();
+        }else{
+          editorHost.innerHTML = `<p class="muted">${t("result.editor.loading")}</p>`;
+        }
+        queueRender(0);
+      }
+
+      btnSave.disabled = !generatedEmailId;
+      btnSave.addEventListener("click", async () => {
+        if(!generatedEmailId) return;
+        btnSave.disabled = true;
+        try{
+          persistLocal();
+          await syncServer();
+          await API.updateGeneratedEmail(generatedEmailId, {
+            subject: generation.subject || "",
+            templateId: generation.templateId || "",
+            payload: generation,
+          });
+        }catch(ex){
+          error.textContent = ex.message || t("common.error.saveFailed");
+          error.style.display = "block";
+        }finally{
+          btnSave.disabled = !generatedEmailId;
+        }
+      });
+
+      btnSaveCopy.addEventListener("click", async () => {
+        persistLocal();
+        await syncServer();
+        const title = window.prompt(t("result.copy.prompt") || "Copy name", generation.subject || "Copy");
+        if(!title) return;
+        try{
+          const created = await API.createGeneratedEmail({
+            title,
+            subject: generation.subject || "",
+            templateId: generation.templateId || "",
+            payload: generation,
+          });
+          if(created && created.id){
+            generatedEmailId = created.id;
+            Store.setGeneratedEmailId(created.id);
+            btnSave.disabled = false;
+          }
+        }catch(ex){
+          error.textContent = ex.message || t("common.error.saveFailed");
+          error.style.display = "block";
+        }
+      });
+
+      btnDownload.addEventListener("click", async () => {
+        persistLocal();
+        await syncServer();
+        try{
+          const html = await buildExportHtml();
+          const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "smart-letters-email.html";
+          a.click();
+          URL.revokeObjectURL(a.href);
+        }catch(ex){
+          error.textContent = ex.message || "Download failed";
+          error.style.display = "block";
+        }
+      });
+
+      window.addEventListener("resize", () => EmailPreview.resizeFrame(frame));
+      init();
+    })();
+  </script>
+</body>
+</html>

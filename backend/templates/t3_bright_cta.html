@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="{{language}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{components.heading.text}}</title>
+</head>
+<body data-edit-slot="page" style="margin: 0; padding: 0; font-family: Arial, sans-serif; background: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 16px rgba(15,23,42,0.12);">
+                    
+                    <!-- Colorful Header -->
+                    {% if components.heading.text or components.logo.enabled %}
+                    <tr>
+                        <td data-edit-slot="heading" style="padding: 30px 34px; background: linear-gradient(135deg, {{components.theme.primary}} 0%, {{components.theme.secondary}} 100%); text-align: {{components.heading.align}};">
+                            {% if components.logo.enabled %}
+                            <img data-edit-slot="logo" src="{{components.logo.url}}" alt="{{components.logo.alt}}" style="width: 60px; height: 60px; border-radius: 12px; object-fit: contain; background-color: rgba(255,255,255,0.2); padding: 10px; margin-bottom: 15px;">
+                            {% endif %}
+                            <h1 style="margin: 0; font-size: 24px; color: {{components.heading.textColor}}; font-weight: 700; letter-spacing: -0.2px;">{{components.heading.companyName or components.heading.text}}</h1>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Hero Image with Overlay -->
+                    {% if components.media.hasImage %}
+                    <tr>
+                        <td style="padding: 0; position: relative; text-align: {{components.media.align}};">
+                            <img data-edit-slot="image" src="{{components.media.imageUrl}}" alt="{{components.media.imageAlt}}" style="width: 100%; height: auto; display: block; border-radius: {% if components.media.rounded %}8px{% else %}0{% endif %};">
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Main Content with Emphasis -->
+                    {% if components.body.enabled %}
+                    <tr>
+                        <td style="padding: 34px 34px 24px 34px;">
+                            <div data-edit-slot="body" style="color: {{components.body.textColor}}; font-size: {{components.body.fontSize}}px; line-height: 1.7; text-align: {{components.body.align}}; background: {{components.body.backgroundColor}};">
+                                {{components.body.html|safe}}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Prominent CTA Button -->
+                    {% if components.cta.enabled %}
+                    <tr>
+                        <td style="padding: 8px 34px 34px 34px; text-align: {{components.cta.align}};">
+                            <table role="presentation" style="border-collapse: collapse;">
+                                <tr>
+                                    <td style="background: {{components.cta.backgroundColor}}; border-radius: 8px; box-shadow: 0 2px 8px rgba(15,23,42,0.16);">
+                                        <a data-edit-slot="cta" href="{{components.cta.link}}" style="display: inline-block; padding: 13px 28px; color: {{components.cta.textColor}}; text-decoration: none; font-weight: 600; font-size: 15px; letter-spacing: 0.2px;">{{components.cta.label}}</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Vibrant Footer -->
+                    {% if components.footer.enabled %}
+                    <tr>
+                        <td data-edit-slot="footer" style="padding: 30px 40px; background-color: {{components.footer.backgroundColor}}; text-align: {{components.footer.align}};">
+                            <table role="presentation" style="width: 100%;">
+                                <tr>
+                                    <td style="text-align: {{components.footer.align}};">
+                                        <div style="font-size: 13px; color: {{components.footer.textColor}}; line-height: 1.6;">
+                                            {% if components.footer.email %}<div style="margin: 6px 0;">Email: {{components.footer.email}}</div>{% endif %}
+                                            {% if components.footer.phone %}<div style="margin: 6px 0;">Phone: {{components.footer.phone}}</div>{% endif %}
+                                            {% if components.footer.website %}<div style="margin: 6px 0;">Website: <a href="{{components.footer.website}}" style="color: {{components.theme.primary}}; text-decoration: none; font-weight: 600;">{{components.footer.website}}</a></div>{% endif %}
+                                            {% if not components.footer.email and not components.footer.phone and not components.footer.website and not components.footer.hasSocialLinks %}
+                                            <div style="margin: 6px 0;">{{components.footer.companyName or components.heading.text}}</div>
+                                            {% endif %}
+                                        </div>
+                                        {% if components.footer.hasSocialLinks %}
+                                        <div style="margin-top: 20px;">
+                                            {{components.footer.socialLinksHtml|safe}}
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

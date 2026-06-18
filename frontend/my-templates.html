@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.myTemplates">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Templates</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <style>
+    .tpl-section{ margin-bottom:28px; }
+    .tpl-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+    .tpl-card{
+      border:1px solid var(--border); border-radius:10px; background:var(--card);
+      padding:14px; display:flex; flex-direction:column; gap:10px; min-height:160px;
+    }
+    .tpl-card h3{ margin:0; font-size:16px; }
+    .tpl-card-meta{ font-size:12px; color:var(--muted); }
+    .tpl-card-actions{ margin-top:auto; display:flex; flex-wrap:wrap; gap:8px; }
+    .tpl-badge{
+      display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px;
+      background:rgba(79,70,229,.12); color:var(--primary);
+    }
+  </style>
+</head>
+<body>
+  <main class="container page-shell">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company</a>
+      <a href="my-templates.html" data-i18n="nav.templates">Templates</a>
+      <a href="params.html" data-i18n="nav.generate">Generate</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Emails</a>
+      <a href="contacts.html" data-i18n="nav.contacts">Contacts</a>
+      <a href="campaigns.html" data-i18n="nav.campaigns">Campaigns</a>
+      <a href="analytics.html" data-i18n="nav.analytics">Analytics</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account</a>
+    </nav>
+
+    <header class="page-header">
+      <h1 class="h2" data-i18n="myTemplates.title">Email templates</h1>
+      <p class="p page-subtitle" data-i18n="myTemplates.subtitle">Manage your layouts.</p>
+      <div style="margin-top:12px;">
+        <a class="btn btn-primary" href="template-builder.html" data-i18n="myTemplates.create">Create template</a>
+        <a class="btn btn-outline" href="templates.html" data-i18n="myTemplates.chooseForGeneration">Choose for generation</a>
+      </div>
+    </header>
+
+    <p id="err" class="error" style="display:none;"></p>
+
+    <section class="tpl-section">
+      <h2 class="h4" data-i18n="myTemplates.saved">My templates</h2>
+      <p id="saved-empty" class="muted" style="display:none;" data-i18n="myTemplates.empty">No saved templates.</p>
+      <div id="saved-grid" class="tpl-grid"></div>
+    </section>
+
+    <section class="tpl-section">
+      <h2 class="h4" data-i18n="myTemplates.builtin">Built-in</h2>
+      <div id="builtin-grid" class="tpl-grid"></div>
+    </section>
+  </main>
+
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (function(){
+      if(!requireAuth()) return;
+      const err = document.getElementById("err");
+      const savedGrid = document.getElementById("saved-grid");
+      const builtinGrid = document.getElementById("builtin-grid");
+      const savedEmpty = document.getElementById("saved-empty");
+
+      function showErr(msg){
+        err.textContent = msg || "";
+        err.style.display = msg ? "block" : "none";
+      }
+
+      function tplName(tpl){
+        const dict = I18N[Store.getLanguage()] || {};
+        return dict[tpl.name] || tpl.name;
+      }
+
+      function escHtml(s){
+        return typeof window.escHtml === "function" ? window.escHtml(s) : String(s || "");
+      }
+
+      function renderSaved(list){
+        savedGrid.innerHTML = "";
+        savedEmpty.style.display = list.length ? "none" : "block";
+        list.forEach((tpl) => {
+          const card = document.createElement("article");
+          card.className = "tpl-card";
+          const n = (tpl.blockLayout || []).length;
+          card.innerHTML = `
+            <h3>${escHtml(tpl.name)}</h3>
+            <div class="tpl-card-meta"><span class="tpl-badge">${t("myTemplates.blocks", { n: String(n) })}</span></div>
+            <div class="tpl-card-actions">
+              <a class="btn btn-outline btn-sm" href="template-builder.html?id=${tpl.id}">${t("myTemplates.edit")}</a>
+              <button type="button" class="btn btn-primary btn-sm" data-use="${tpl.id}">${t("myTemplates.use")}</button>
+              <button type="button" class="btn btn-outline btn-sm" data-del="${tpl.id}">${t("myTemplates.delete")}</button>
+            </div>
+          `;
+          card.querySelector("[data-use]").addEventListener("click", () => {
+            Store.setSelectedTemplate({
+              id: `user:${tpl.id}`,
+              name: tpl.name,
+              isModular: true,
+              blockLayout: tpl.blockLayout || [],
+              theme: tpl.theme || {},
+              userTemplateId: tpl.id,
+            });
+            window.location.href = "templates.html";
+          });
+          card.querySelector("[data-del]").addEventListener("click", async () => {
+            if(!confirm(t("myTemplates.deleteConfirm"))) return;
+            try{
+              await API.deleteUserTemplate(tpl.id);
+              load();
+            }catch(ex){
+              showErr(ex.message);
+            }
+          });
+          savedGrid.appendChild(card);
+        });
+      }
+
+      function renderBuiltin(list){
+        builtinGrid.innerHTML = "";
+        list.filter(x => x.isBuiltin !== false).forEach((tpl) => {
+          const card = document.createElement("article");
+          card.className = "tpl-card";
+          card.innerHTML = `
+            <h3>${escHtml(tplName(tpl))}</h3>
+            <div class="tpl-card-meta">${tpl.isModular ? `<span class="tpl-badge">${escHtml(t("templates.modularBadge"))}</span>` : ""}</div>
+            <div class="tpl-card-actions">
+              ${tpl.isModular ? `<a class="btn btn-outline btn-sm" href="template-builder.html?preset=${encodeURIComponent(tpl.id)}">${t("myTemplates.edit")}</a>` : ""}
+              <button type="button" class="btn btn-primary btn-sm">${t("myTemplates.use")}</button>
+            </div>
+          `;
+          card.querySelector(".btn-primary").addEventListener("click", () => {
+            Store.setSelectedTemplate(tpl);
+            window.location.href = "templates.html";
+          });
+          builtinGrid.appendChild(card);
+        });
+      }
+
+      async function load(){
+        showErr("");
+        try{
+          const [saved, all] = await Promise.all([
+            API.getUserTemplates(),
+            API.getTemplates(),
+          ]);
+          renderSaved(Array.isArray(saved) ? saved : []);
+          renderBuiltin(Array.isArray(all) ? all : []);
+        }catch(ex){
+          showErr(ex.message || t("templates.error.load"));
+        }
+      }
+
+      load();
+    })();
+  </script>
+</body>
+</html>

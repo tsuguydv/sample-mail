@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.account">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Account settings</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <main class="container page-shell page-shell--account">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="contacts.html" data-i18n="nav.contacts">Contacts</a>
+      <a href="campaigns.html" data-i18n="nav.campaigns">Campaigns</a>
+      <a href="analytics.html" data-i18n="nav.analytics">Analytics</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+
+    <header class="page-header">
+      <h1 class="h2" data-i18n="account.title">Account settings</h1>
+      <p class="p page-subtitle" data-i18n="account.subtitle">Manage profile, sessions, and security.</p>
+    </header>
+    <p id="err" class="error" style="display:none;"></p>
+
+    <section class="account-block">
+      <h2 class="account-block-title" data-i18n="account.profile.title">Profile</h2>
+      <div class="row" style="align-items:center;gap:16px;">
+        <div id="avatarPreview" class="avatar-preview" aria-hidden="true"></div>
+        <div style="flex:1;min-width:180px;display:grid;gap:8px;">
+          <label class="label" for="avatarFile" style="margin:0;" data-i18n="account.label.avatar">Profile photo</label>
+          <input id="avatarFile" class="file" type="file" accept="image/*" />
+          <p class="small muted" style="margin:0;" data-i18n="account.avatar.hint">JPEG, PNG, WebP, or GIF from your computer.</p>
+        </div>
+      </div>
+      <input id="email" class="input" type="email" data-i18n="account.placeholder.email" placeholder="Email" />
+      <input id="displayName" class="input" data-i18n="account.placeholder.displayName" placeholder="Display name" />
+      <input id="avatarUrl" class="input" type="url" data-i18n="account.placeholder.avatarUrl" placeholder="Avatar URL" />
+      <div class="account-actions">
+        <button id="saveProfile" class="btn btn-outline" type="button" data-i18n="account.button.saveProfile">Save profile</button>
+      </div>
+    </section>
+
+    <div class="spacer-4"></div>
+    <section class="account-block">
+      <h2 class="account-block-title" data-i18n="account.password.title">Password</h2>
+      <input id="currentPassword" class="input" type="password" data-i18n="account.placeholder.currentPassword" placeholder="Current password" />
+      <input id="newPassword" class="input" type="password" data-i18n="account.placeholder.newPassword" placeholder="New password" />
+      <div class="account-actions">
+        <button id="savePassword" class="btn btn-outline" type="button" data-i18n="account.button.changePassword">Change password</button>
+      </div>
+    </section>
+
+    <div class="spacer-4"></div>
+    <section class="account-block">
+      <h2 class="account-block-title" data-i18n="account.sessions.title">Sessions</h2>
+      <div id="sessions" class="grid"></div>
+    </section>
+
+    <div class="spacer-4"></div>
+    <section class="account-block">
+      <h2 class="account-block-title" data-i18n="account.tokens.title">Tokens</h2>
+      <p id="planState" class="muted" data-i18n="account.plan.loading">Loading…</p>
+      <div class="account-actions">
+        <a class="btn btn-primary" href="plans.html" data-i18n="account.tokens.upgrade">Upgrade plan</a>
+        <a class="btn btn-outline" href="buy-tokens.html" id="buyTokensLink" data-i18n="account.tokens.buy">Buy more tokens</a>
+      </div>
+    </section>
+
+    <div class="spacer-4"></div>
+    <section class="account-block account-danger">
+      <h2 class="account-block-title" data-i18n="account.danger.title">Danger zone</h2>
+      <div class="account-actions">
+        <button id="deleteAccount" class="btn btn-outline" type="button" data-i18n="account.button.deleteAccount">Delete account</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (async function(){
+      if(!requireAuth()) return;
+      const errEl = document.getElementById("err");
+      const sessionsEl = document.getElementById("sessions");
+
+      function showErr(msg){
+        errEl.textContent = msg || t("common.error");
+        errEl.style.display = "block";
+      }
+
+      function renderAvatarPreview(url){
+        const el = document.getElementById("avatarPreview");
+        el.innerHTML = "";
+        if(url){
+          const img = document.createElement("img");
+          img.alt = "";
+          img.src = url;
+          el.appendChild(img);
+        }
+      }
+
+      function renderPlanState(acc){
+        const planState = document.getElementById("planState");
+        if(!planState) return;
+        const e = acc?.entitlements || {};
+        planState.setAttribute("data-i18n-skip", "1");
+        const textT = e.tokensPerText ?? 10;
+        const imgT = e.tokensPerImage ?? 20;
+        planState.textContent = t("account.plan.summary", {
+          bal: Number(e.tokenBalance || 0).toLocaleString(),
+          text: String(textT),
+          image: String(imgT),
+          free: String(e.freeGenerationsRemainingToday ?? 0),
+          rep: String(e.reputationScore ?? 100),
+          sub: e.hasActiveSubscription ? t("account.plan.subscribed") : t("account.plan.notSubscribed"),
+        });
+        const buyLink = document.getElementById("buyTokensLink");
+        if(buyLink){
+          buyLink.style.display = e.canTopUpTokens ? "" : "none";
+        }
+      }
+
+      async function load(){
+        errEl.style.display = "none";
+        try{
+          const acc = await API.getAccount();
+          document.getElementById("email").value = acc.email || "";
+          document.getElementById("displayName").value = acc.displayName || "";
+          document.getElementById("avatarUrl").value = acc.avatarUrl || "";
+          renderAvatarPreview(acc.avatarUrl || "");
+          renderPlanState(acc);
+
+          const sessions = await API.getSessions();
+          sessionsEl.innerHTML = "";
+          const seen = new Set();
+          for(const s of sessions){
+            if(!s || !s.id || seen.has(s.id)) continue;
+            seen.add(s.id);
+            const row = document.createElement("div");
+            row.className = "row";
+            row.style.justifyContent = "space-between";
+
+            const txt = document.createElement("div");
+            txt.className = "small";
+            const ua = (s.userAgent && String(s.userAgent).trim()) ? s.userAgent : t("account.sessions.unknownAgent");
+            const ip = (s.ipAddress && String(s.ipAddress).trim()) ? s.ipAddress : "—";
+            txt.textContent = s.isCurrent
+              ? `${ua} (${ip}) • ${t("account.sessions.current")}`
+              : `${ua} (${ip})`;
+
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "btn btn-outline";
+            btn.textContent = s.isCurrent ? t("account.sessions.logoutCurrent") : t("account.sessions.revoke");
+            btn.addEventListener("click", async () => {
+              await API.revokeSession(s.id);
+              if(s.isCurrent){
+                Store.setToken(null);
+                window.location.href = "login.html";
+                return;
+              }
+              await load();
+            });
+
+            row.append(txt, btn);
+            sessionsEl.appendChild(row);
+          }
+        }catch(ex){
+          showErr(ex && ex.message ? ex.message : t("account.error.load"));
+        }
+      }
+
+      document.getElementById("avatarFile").addEventListener("change", async (ev) => {
+        const file = ev.target && ev.target.files && ev.target.files[0];
+        if(!file) return;
+        errEl.style.display = "none";
+        try{
+          const res = await API.uploadAvatar(file);
+          if(res && res.url){
+            document.getElementById("avatarUrl").value = res.url;
+            renderAvatarPreview(res.url);
+            await API.updateAccount({
+              email: document.getElementById("email").value.trim(),
+              displayName: document.getElementById("displayName").value.trim(),
+              avatarUrl: res.url,
+            });
+            await load();
+            if(typeof refreshDashboardNavUser === "function") refreshDashboardNavUser();
+          }
+        }catch(ex){
+          showErr(ex && ex.message ? ex.message : t("account.error.upload"));
+        }
+        ev.target.value = "";
+      });
+
+      document.getElementById("saveProfile").addEventListener("click", async () => {
+        try{
+          await API.updateAccount({
+            email: document.getElementById("email").value.trim(),
+            displayName: document.getElementById("displayName").value.trim(),
+            avatarUrl: document.getElementById("avatarUrl").value.trim(),
+          });
+          await load();
+          if(typeof refreshDashboardNavUser === "function") refreshDashboardNavUser();
+        }catch(ex){
+          showErr(ex && ex.message ? ex.message : t("account.error.saveProfile"));
+        }
+      });
+
+      document.getElementById("savePassword").addEventListener("click", async () => {
+        try{
+          await API.updatePassword(
+            document.getElementById("currentPassword").value,
+            document.getElementById("newPassword").value
+          );
+          document.getElementById("currentPassword").value = "";
+          document.getElementById("newPassword").value = "";
+        }catch(ex){
+          showErr(ex && ex.message ? ex.message : t("account.error.password"));
+        }
+      });
+
+      document.getElementById("deleteAccount").addEventListener("click", async () => {
+        if(!confirm(t("account.confirm.deleteAccount"))) return;
+        try{
+          await API.deleteAccount();
+          Store.setToken(null);
+          window.location.href = "login.html";
+        }catch(ex){
+          showErr(ex && ex.message ? ex.message : t("account.error.delete"));
+        }
+      });
+
+      window.addEventListener("taskflock-language-changed", () => {
+        if(typeof applyTranslations === "function") applyTranslations();
+        void load();
+      });
+
+      await load();
+    })();
+  </script>
+</body>
+</html>

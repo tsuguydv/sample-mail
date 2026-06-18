@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.login">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Вход</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+  <main class="center-screen">
+    <div class="container container-narrow" style="max-width:420px;">
+      <div style="text-align:center;">
+        <a href="index.html" style="display:inline-block; font-size:24px; font-weight:800; color: var(--primary); text-decoration:none;">smart-letters</a>
+        <div class="spacer-2"></div>
+        <h1 class="h3" style="margin-top:8px;" data-i18n="login.title">Вход в систему</h1>
+      </div>
+
+      <div class="spacer-4"></div>
+
+      <form id="login-form" class="card card-pad" style="display:grid; gap:14px;">
+        <div>
+          <label class="label" for="email" data-i18n="login.label.email">Email</label>
+          <input class="input" id="email" name="email" type="email" autocomplete="email" required />
+        </div>
+        <div>
+          <label class="label" for="password" data-i18n="login.label.password">Пароль</label>
+          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required minlength="6" />
+        </div>
+        <p id="login-error" class="error" role="alert" style="display:none;"></p>
+        <button class="btn btn-primary" id="login-submit" type="submit" data-i18n="login.button">Войти</button>
+      </form>
+
+      <div class="spacer-4"></div>
+      <p class="small muted" style="text-align:center;">
+        <span data-i18n="login.footer.noaccount">Нет аккаунта?</span>
+        <a href="register.html" data-i18n="login.footer.create">Создать</a>
+        ·
+        <a href="index.html" data-i18n="login.footer.home">На главную</a>
+      </p>
+    </div>
+  </main>
+
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (function(){
+      const form = document.getElementById("login-form");
+      const err = document.getElementById("login-error");
+      const btn = document.getElementById("login-submit");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        err.style.display = "none";
+        btn.disabled = true;
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+        try{
+          const res = await API.login(email, password);
+          Store.setToken(res.token);
+          const q = new URLSearchParams(window.location.search);
+          let next = q.get("next") || q.get("return") || "";
+          if(!next || !/^[a-z0-9][a-z0-9-]*\.html$/i.test(next) || next.includes("://")){
+            next = "company.html";
+          }
+          window.location.href = next;
+        }catch(ex){
+          const ld = (typeof I18N !== "undefined" && I18N[Store.getLanguage()]) ? I18N[Store.getLanguage()] : {};
+          const msg = (ex && ex.message) ? ex.message : (ld["login.error"] || "Sign-in error");
+          err.textContent = msg;
+          if(/verify/i.test(msg)){
+            const em = email.trim();
+            if(em){
+              await API.resendVerification(em).catch(() => {});
+              err.textContent = msg + t("login.resendVerification.append");
+            }
+          }
+          err.style.display = "block";
+        }finally{
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
+  
+</body>
+</html>

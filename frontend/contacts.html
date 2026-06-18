@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.contacts">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Contacts</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <style>
+    .contacts-page{ max-width:980px; }
+    .section-card{
+      margin-top:16px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:var(--card);
+      overflow:hidden;
+    }
+    .section-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 18px;
+      border-bottom:1px solid var(--border);
+      background:var(--card);
+    }
+    .section-head-title{
+      font-size:14px;
+      font-weight:600;
+      color:var(--text);
+      margin:0;
+    }
+    .section-body{ padding:18px; }
+    .contacts-table{ width:100%; border-collapse:collapse; font-size:13px; }
+    .contacts-table th, .contacts-table td{
+      text-align:left; padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:top;
+    }
+    .contacts-table thead th{
+      font-weight:600; color:var(--muted); font-size:11px; text-transform:uppercase;
+      letter-spacing:.04em; white-space:nowrap; background:var(--card);
+    }
+    .contacts-table tbody tr:last-child td{ border-bottom:0; }
+    .contacts-table .col-count{ width:120px; white-space:nowrap; color:var(--muted); }
+    .contacts-table .col-id{ font-family:monospace; font-size:11px; color:var(--muted); max-width:220px; word-break:break-all; }
+    .contacts-table .col-file{ min-width:200px; }
+    .contacts-table .col-status{ width:150px; white-space:nowrap; }
+    .file-label{
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:13px; cursor:pointer; color:var(--primary);
+    }
+    .file-label:hover{ text-decoration:underline; }
+    .file-input{ display:none; }
+    .preview-list{
+      margin:6px 0 0; padding:0 0 0 16px; font-size:12px; color:var(--muted); line-height:1.6;
+    }
+    .preview-count{ font-size:12px; font-weight:600; color:var(--text); margin-top:4px; }
+    .result-ok{ color:#067647; font-weight:600; }
+    .result-err{ color:#b42318; font-weight:600; }
+    .result-detail{
+      margin:4px 0 0; padding:8px 10px; border-radius:8px; font-size:11px; font-family:monospace;
+      background:#111827; color:#e5e7eb; white-space:pre-wrap; word-break:break-all;
+    }
+    .warning-banner{
+      display:flex; align-items:flex-start; gap:10px;
+      padding:12px 16px; border-radius:10px;
+      background:#fffaeb; border:1px solid #f79009; color:#92400e; font-size:13px;
+    }
+    :root[data-theme="dark"] .warning-banner{
+      background:#2d1f00; border-color:#b45309; color:#fcd34d;
+    }
+    .empty-msg{ padding:18px; color:var(--muted); font-size:13px; }
+    .actions-bar{ display:flex; align-items:center; gap:12px; margin-top:20px; }
+    @media(max-width:760px){
+      .contacts-table th, .contacts-table td{ padding:8px; }
+      .col-id{ display:none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container page-shell contacts-page">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="contacts.html" class="active" data-i18n="nav.contacts">Contacts</a>
+      <a href="campaigns.html" data-i18n="nav.campaigns">Campaigns</a>
+      <a href="analytics.html" data-i18n="nav.analytics">Analytics</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+
+    <header class="page-header">
+      <h1 class="h2" data-i18n="contacts.title">Contacts</h1>
+      <p class="p page-subtitle" data-i18n="contacts.subtitle">Upload CSV contacts into your mailing lists.</p>
+    </header>
+
+    <!-- Warning if the mailing provider is not configured -->
+    <div id="no-sendgrid" class="warning-banner" style="display:none; margin-top:16px;">
+      ⚠️ <span data-i18n="contacts.noSendgrid">The mailing provider is not configured on the server.</span>
+    </div>
+
+    <!-- Global error -->
+    <p id="err-global" class="error" style="display:none; margin-top:12px;"></p>
+
+    <!-- Lists section -->
+    <div class="section-card">
+      <div class="section-head">
+        <h2 class="section-head-title" data-i18n="contacts.listsTitle">Mailing lists</h2>
+        <div>
+          <button id="btn-new-list" class="btn btn-secondary" type="button" data-i18n="contacts.newList">+ New list</button>
+          <button id="btn-refresh" class="btn btn-secondary" type="button" data-i18n="contacts.refresh">Refresh</button>
+        </div>
+      </div>
+      <div id="lists-body">
+        <p id="lists-loading" class="empty-msg" data-i18n="contacts.loading">Loading lists…</p>
+        <p id="lists-empty" class="empty-msg" style="display:none;" data-i18n="contacts.noLists">No mailing lists found.</p>
+        <table id="lists-table" class="contacts-table" style="display:none;">
+          <thead>
+            <tr>
+              <th data-i18n="contacts.col.name">List name</th>
+              <th class="col-id" data-i18n="contacts.col.id">ID</th>
+              <th class="col-count" data-i18n="contacts.col.existing">Existing</th>
+              <th class="col-file" data-i18n="contacts.col.csv">CSV file</th>
+              <th class="col-status" data-i18n="contacts.col.parsed">Parsed</th>
+              <th class="col-actions"></th>
+            </tr>
+          </thead>
+          <tbody id="lists-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-bar">
+      <button id="btn-upload" class="btn" type="button" disabled data-i18n="contacts.upload">Upload contacts</button>
+      <span id="upload-status" style="font-size:13px; color:var(--muted);"></span>
+    </div>
+
+    <!-- Results section -->
+    <div id="results-card" class="section-card" style="display:none; margin-bottom:24px;">
+      <div class="section-head">
+        <h2 class="section-head-title" data-i18n="contacts.resultsTitle">Upload Results</h2>
+      </div>
+      <div class="section-body">
+        <table class="contacts-table">
+          <thead>
+            <tr>
+              <th data-i18n="contacts.col.name">List</th>
+              <th data-i18n="contacts.col.uploaded">Uploaded</th>
+              <th data-i18n="contacts.col.total">Total</th>
+              <th data-i18n="contacts.col.batches">Batches</th>
+              <th data-i18n="contacts.col.errors">Errors</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (async function(){
+      if(!requireAuth()) return;
+      if(typeof applyTranslations === "function") applyTranslations();
+
+      const errGlobalEl   = document.getElementById("err-global");
+      const listsLoadingEl = document.getElementById("lists-loading");
+      const listsEmptyEl  = document.getElementById("lists-empty");
+      const listsTableEl  = document.getElementById("lists-table");
+      const listsTbodyEl  = document.getElementById("lists-tbody");
+      const btnRefresh    = document.getElementById("btn-refresh");
+      const btnUpload     = document.getElementById("btn-upload");
+      const uploadStatusEl = document.getElementById("upload-status");
+      const resultsCardEl = document.getElementById("results-card");
+      const resultsTbodyEl = document.getElementById("results-tbody");
+      const noSendgridEl  = document.getElementById("no-sendgrid");
+
+      // list_id → { contacts, fileName }
+      const mapping = {};
+      let listsCache = [];
+
+      function t(key){
+        const lang = (typeof Store !== "undefined" && Store.getLanguage) ? Store.getLanguage() : "ru";
+        const d = (typeof I18N !== "undefined" && I18N[lang]) ? I18N[lang] : {};
+        const fallback = (typeof I18N !== "undefined" && I18N.en) ? I18N.en : {};
+        return d[key] || fallback[key] || key;
+      }
+
+      function showErr(msg){
+        errGlobalEl.textContent = msg;
+        errGlobalEl.style.display = "block";
+      }
+      function clearErr(){
+        errGlobalEl.style.display = "none";
+        errGlobalEl.textContent = "";
+      }
+
+      function updateUploadBtn(){
+        const hasAny = Object.values(mapping).some((m) => m.contacts.length > 0);
+        btnUpload.disabled = !hasAny;
+      }
+
+      function parseContacts(file, listId){
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          transformHeader: (h) => h.replace(/^﻿/, "").trim(),
+          complete(results){
+            const contacts = [];
+            for(const row of results.data){
+              const norm = {};
+              for(const [k, v] of Object.entries(row)){
+                norm[k.toLowerCase().replace(/[^a-z0-9_]/g, "_")] = (v || "").trim();
+              }
+              const email = norm.email || norm.e_mail || norm.email_address || "";
+              if(!email) continue;
+              contacts.push({
+                email,
+                first_name: norm.first_name || norm.firstname || "",
+                last_name:  norm.last_name  || norm.lastname  || "",
+                city:       norm.city || "",
+                country:    norm.country || "",
+              });
+            }
+            mapping[listId] = { contacts, fileName: file.name };
+            renderListRow(listId);
+            updateUploadBtn();
+          },
+          error(err){
+            showErr(t("contacts.parseError") + (err?.message || String(err)));
+          },
+        });
+      }
+
+      function renderListRow(listId){
+        const row = document.getElementById("list-row-" + listId);
+        if(!row) return;
+        const m = mapping[listId];
+        const countCell = row.querySelector(".list-parsed");
+        const previewCell = row.querySelector(".list-preview");
+        if(!m || !m.contacts.length){
+          countCell.textContent = "—";
+          previewCell.innerHTML = "";
+          return;
+        }
+        countCell.innerHTML = `<span class="preview-count">${t("contacts.contactsCount", {n: m.contacts.length})}</span>`;
+        const sample = m.contacts.slice(0, 5);
+        const ul = document.createElement("ul");
+        ul.className = "preview-list";
+        sample.forEach((c) => {
+          const li = document.createElement("li");
+          const name = [c.first_name, c.last_name].filter(Boolean).join(" ");
+          li.textContent = (name ? name + " " : "") + "<" + c.email + ">" + (c.city ? " — " + c.city : "");
+          ul.appendChild(li);
+        });
+        if(m.contacts.length > 5){
+          const li = document.createElement("li");
+          li.textContent = t("contacts.more", {n: m.contacts.length - 5});
+          ul.appendChild(li);
+        }
+        previewCell.innerHTML = "";
+        previewCell.appendChild(ul);
+      }
+
+      // Render contacts already saved in the DB (visible after a page refresh, when
+      // the in-memory parsed CSV `mapping` is empty).
+      function paintSavedPreview(listId, contacts, totalCount){
+        const row = document.getElementById("list-row-" + listId);
+        if(!row || !contacts.length) return;
+        const countCell = row.querySelector(".list-parsed");
+        const previewCell = row.querySelector(".list-preview");
+        const total = totalCount || contacts.length;
+        countCell.innerHTML = `<span class="preview-count">${t("contacts.saved", {n: total.toLocaleString()})}</span>`;
+        const ul = document.createElement("ul");
+        ul.className = "preview-list";
+        contacts.slice(0, 5).forEach((c) => {
+          const li = document.createElement("li");
+          const name = [c.first_name, c.last_name].filter(Boolean).join(" ");
+          li.textContent = (name ? name + " " : "") + "<" + c.email + ">" + (c.city ? " — " + c.city : "");
+          ul.appendChild(li);
+        });
+        if(total > 5){
+          const li = document.createElement("li");
+          li.textContent = t("contacts.more", {n: total - 5});
+          ul.appendChild(li);
+        }
+        previewCell.innerHTML = "";
+        previewCell.appendChild(ul);
+      }
+
+      async function loadSavedContacts(listId, totalCount){
+        if(mapping[listId]) return;  // freshly parsed CSV preview takes priority
+        try{
+          const data = await API.getListContacts(listId);
+          const contacts = (data && Array.isArray(data.contacts)) ? data.contacts : [];
+          paintSavedPreview(listId, contacts, totalCount);
+        }catch(ex){ /* non-fatal: list still shows its count */ }
+      }
+
+      function renderLists(lists){
+        listsTbodyEl.innerHTML = "";
+        if(!lists.length){
+          listsLoadingEl.style.display = "none";
+          listsEmptyEl.style.display = "block";
+          listsTableEl.style.display = "none";
+          return;
+        }
+        listsLoadingEl.style.display = "none";
+        listsEmptyEl.style.display = "none";
+        listsTableEl.style.display = "table";
+
+        lists.forEach((list) => {
+          const tr = document.createElement("tr");
+          tr.id = "list-row-" + list.id;
+
+          // Name cell
+          const tdName = document.createElement("td");
+          tdName.textContent = list.name;
+
+          // ID cell
+          const tdId = document.createElement("td");
+          tdId.className = "col-id";
+          tdId.textContent = list.id;
+
+          // Existing contacts cell
+          const tdCount = document.createElement("td");
+          tdCount.className = "col-count";
+          tdCount.textContent = list.contactCount != null ? list.contactCount.toLocaleString() : "—";
+
+          // CSV file cell
+          const tdFile = document.createElement("td");
+          tdFile.className = "col-file";
+          const fileId = "csv-" + list.id;
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = ".csv";
+          input.id = fileId;
+          input.className = "file-input";
+          input.addEventListener("change", (ev) => {
+            const file = ev.target.files && ev.target.files[0];
+            if(file) parseContacts(file, list.id);
+          });
+          const label = document.createElement("label");
+          label.htmlFor = fileId;
+          label.className = "file-label";
+          label.textContent = mapping[list.id] ? mapping[list.id].fileName : t("contacts.chooseFile");
+          if(!mapping[list.id]) label.setAttribute("data-i18n", "contacts.chooseFile");
+          tdFile.appendChild(input);
+          tdFile.appendChild(label);
+
+          // Parsed count cell
+          const tdParsed = document.createElement("td");
+          tdParsed.className = "col-status list-parsed";
+          tdParsed.textContent = "—";
+
+          // Actions cell (delete list)
+          const tdActions = document.createElement("td");
+          tdActions.className = "col-actions";
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "btn btn-secondary";
+          delBtn.textContent = "✕";
+          delBtn.title = t("contacts.deleteListTitle");
+          delBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if(!confirm(t("contacts.deleteConfirm"))) return;
+            try { await API.deleteContactList(list.id); await loadLists(); }
+            catch(ex){ showErr(ex?.message || String(ex)); }
+          });
+          tdActions.appendChild(delBtn);
+
+          // Preview cell (reuses the same row via a second row)
+          tr.appendChild(tdName);
+          tr.appendChild(tdId);
+          tr.appendChild(tdCount);
+          tr.appendChild(tdFile);
+          tr.appendChild(tdParsed);
+          tr.appendChild(tdActions);
+          listsTbodyEl.appendChild(tr);
+
+          // Preview sub-row
+          const trPreview = document.createElement("tr");
+          const tdPreview = document.createElement("td");
+          tdPreview.colSpan = 6;
+          tdPreview.className = "list-preview";
+          tdPreview.style.paddingTop = "0";
+          tdPreview.style.borderTop = "0";
+          trPreview.appendChild(tdPreview);
+          listsTbodyEl.appendChild(trPreview);
+
+          // Override renderListRow to find cells correctly
+          tr.querySelector = (sel) => {
+            if(sel === ".list-parsed") return tdParsed;
+            if(sel === ".list-preview") return tdPreview;
+            return HTMLElement.prototype.querySelector.call(tr, sel);
+          };
+
+          if(mapping[list.id]) renderListRow(list.id);
+          else if(list.contactCount > 0) loadSavedContacts(list.id, list.contactCount);
+        });
+      }
+
+      async function loadLists(){
+        clearErr();
+        listsLoadingEl.style.display = "block";
+        listsEmptyEl.style.display = "none";
+        listsTableEl.style.display = "none";
+        btnRefresh.disabled = true;
+        try{
+          const data = await API.getContactLists();
+          listsCache = (data && Array.isArray(data.lists)) ? data.lists : [];
+          renderLists(listsCache);
+        }catch(ex){
+          listsLoadingEl.style.display = "none";
+          const msg = ex?.message || String(ex);
+          if(msg.includes("not configured")){
+            noSendgridEl.style.display = "flex";
+          } else {
+            showErr(msg || t("contacts.error.load"));
+          }
+        }finally{
+          btnRefresh.disabled = false;
+        }
+      }
+
+      btnRefresh.addEventListener("click", loadLists);
+
+      const btnNewList = document.getElementById("btn-new-list");
+      if(btnNewList){
+        btnNewList.addEventListener("click", async () => {
+          const name = (prompt(t("contacts.listNamePrompt")) || "").trim();
+          if(!name) return;
+          try { await API.createContactList(name); await loadLists(); }
+          catch(ex){ showErr(ex?.message || String(ex)); }
+        });
+      }
+
+      btnUpload.addEventListener("click", async () => {
+        const payload = {
+          lists: listsCache
+            .filter((l) => mapping[l.id] && mapping[l.id].contacts.length > 0)
+            .map((l) => ({
+              list_id: l.id,
+              list_name: l.name,
+              contacts: mapping[l.id].contacts,
+            })),
+        };
+        if(!payload.lists.length) return;
+        if(!confirm(t("contacts.confirm"))) return;
+
+        clearErr();
+        btnUpload.disabled = true;
+        uploadStatusEl.textContent = t("contacts.uploading");
+        resultsCardEl.style.display = "none";
+        resultsTbodyEl.innerHTML = "";
+
+        try{
+          const results = await API.uploadContacts(payload);
+          uploadStatusEl.textContent = t("contacts.done");
+          resultsTbodyEl.innerHTML = "";
+          for(const r of (Array.isArray(results) ? results : [])){
+            const tr = document.createElement("tr");
+            const ok = !r.errors || !r.errors.length;
+            tr.innerHTML = `
+              <td>${r.list_name || r.list_id}</td>
+              <td class="${ok ? "result-ok" : "result-err"}">${(r.uploaded_contacts ?? 0).toLocaleString()}</td>
+              <td>${(r.total_contacts ?? 0).toLocaleString()}</td>
+              <td>${r.batches ?? 0}</td>
+              <td>${ok ? "—" : ""}${!ok ? `<pre class="result-detail">${JSON.stringify(r.errors, null, 2)}</pre>` : ""}</td>
+            `;
+            resultsTbodyEl.appendChild(tr);
+          }
+          resultsCardEl.style.display = "block";
+        }catch(ex){
+          uploadStatusEl.textContent = "";
+          showErr(ex?.message || t("contacts.error.upload"));
+        }finally{
+          updateUploadBtn();
+        }
+      });
+
+      window.addEventListener("taskflock-language-changed", () => {
+        if(typeof applyTranslations === "function") applyTranslations();
+        // Re-render list rows so JS-built strings (counts, previews) switch too.
+        if(typeof renderLists === "function" && Array.isArray(listsCache)) renderLists(listsCache);
+      });
+
+      await loadLists();
+    })();
+  </script>
+</body>
+</html>

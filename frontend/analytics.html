@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.analytics">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Analytics</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <style>
+    .analytics-page{ max-width:1100px; }
+    .section-card{
+      margin-top:16px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:var(--card);
+      overflow:hidden;
+    }
+    .section-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 18px;
+      border-bottom:1px solid var(--border);
+      background:var(--card);
+    }
+    .section-head-title{
+      font-size:14px;
+      font-weight:600;
+      color:var(--text);
+      margin:0;
+    }
+    .section-body{ padding:18px; }
+    .stats-table{ width:100%; border-collapse:collapse; font-size:13px; }
+    .stats-table th, .stats-table td{
+      text-align:left; padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:middle;
+    }
+    .stats-table thead th{
+      font-weight:600; color:var(--muted); font-size:11px; text-transform:uppercase;
+      letter-spacing:.04em; white-space:nowrap; background:var(--card);
+    }
+    .stats-table tbody tr:last-child td{ border-bottom:0; }
+    .stats-table .num{ text-align:right; font-variant-numeric:tabular-nums; }
+    .stats-table .rate-good{ color:#067647; font-weight:600; }
+    .stats-table .rate-mid{ color:#92400e; font-weight:600; }
+    .stats-table .rate-low{ color:var(--muted); }
+    .status-badge{
+      display:inline-block; padding:2px 8px; border-radius:999px;
+      font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.03em;
+    }
+    .status-sent{ background:#dcfce7; color:#166534; }
+    .status-scheduled{ background:#fef9c3; color:#854d0e; }
+    .status-draft{ background:#f3f4f6; color:#6b7280; }
+    .status-canceled{ background:#fee2e2; color:#991b1b; }
+    :root[data-theme="dark"] .status-sent{ background:#052e16; color:#4ade80; }
+    :root[data-theme="dark"] .status-scheduled{ background:#1c1507; color:#fbbf24; }
+    :root[data-theme="dark"] .status-draft{ background:#1f2937; color:#9ca3af; }
+    :root[data-theme="dark"] .status-canceled{ background:#2d0a0a; color:#f87171; }
+    .charts-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:16px;
+      margin-top:16px;
+    }
+    @media(max-width:760px){ .charts-grid{ grid-template-columns:1fr; } }
+    .chart-card{
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:var(--card);
+      padding:16px 18px;
+    }
+    .chart-title{
+      font-size:13px; font-weight:600; color:var(--text); margin:0 0 14px;
+    }
+    .chart-wrap{ position:relative; height:260px; }
+    .summary-cards{
+      display:grid;
+      grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+      gap:12px;
+      margin-top:16px;
+    }
+    .summary-card{
+      padding:14px 16px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:var(--card);
+    }
+    .summary-card .sc-label{ font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    .summary-card .sc-value{ font-size:22px; font-weight:700; color:var(--text); margin-top:4px; }
+    .summary-card .sc-sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+    .warning-banner{
+      display:flex; align-items:flex-start; gap:10px;
+      padding:12px 16px; border-radius:10px;
+      background:#fffaeb; border:1px solid #f79009; color:#92400e; font-size:13px;
+    }
+    :root[data-theme="dark"] .warning-banner{
+      background:#2d1f00; border-color:#b45309; color:#fcd34d;
+    }
+    .empty-msg{ padding:18px; color:var(--muted); font-size:13px; }
+    .name-cell{ max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .date-cell{ white-space:nowrap; color:var(--muted); font-size:12px; }
+  </style>
+</head>
+<body>
+  <main class="container page-shell analytics-page">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="contacts.html" data-i18n="nav.contacts">Contacts</a>
+      <a href="campaigns.html" data-i18n="nav.campaigns">Campaigns</a>
+      <a href="analytics.html" class="active" data-i18n="nav.analytics">Analytics</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+
+    <header class="page-header">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h1 class="h2" data-i18n="analytics.title">Email Analytics</h1>
+          <p class="p page-subtitle" data-i18n="analytics.subtitle">Campaign performance statistics.</p>
+        </div>
+        <button id="btn-refresh" class="btn btn-secondary" type="button" data-i18n="contacts.refresh">Refresh</button>
+      </div>
+    </header>
+
+    <div id="no-sendgrid" class="warning-banner" style="display:none; margin-top:16px;">
+      ⚠️ <span data-i18n="contacts.noSendgrid">The mailing provider is not configured on the server.</span>
+    </div>
+
+    <p id="err-global" class="error" style="display:none; margin-top:12px;"></p>
+    <p id="loading-msg" class="empty-msg" style="margin-top:16px;" data-i18n="contacts.loading">Loading…</p>
+
+    <!-- Summary cards -->
+    <div id="summary-cards" class="summary-cards" style="display:none;"></div>
+
+    <!-- Charts -->
+    <div id="charts-area" class="charts-grid" style="display:none;">
+      <div class="chart-card">
+        <p class="chart-title" data-i18n="analytics.chart.rates">Open Rate &amp; Click Rate by Campaign</p>
+        <div class="chart-wrap"><canvas id="chart-rates"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <p class="chart-title" data-i18n="analytics.chart.funnel">Total Funnel (all campaigns)</p>
+        <div class="chart-wrap"><canvas id="chart-funnel"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div id="table-card" class="section-card" style="display:none; margin-bottom:24px;">
+      <div class="section-head">
+        <h2 class="section-head-title" data-i18n="analytics.tableTitle">Campaign Details</h2>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th data-i18n="analytics.col.name">Campaign</th>
+              <th data-i18n="analytics.col.status">Status</th>
+              <th data-i18n="analytics.col.date">Date</th>
+              <th class="num" data-i18n="analytics.col.sent">Sent</th>
+              <th class="num" data-i18n="analytics.col.delivered">Delivered</th>
+              <th class="num" data-i18n="analytics.col.uOpens">Uniq. Opens</th>
+              <th class="num" data-i18n="analytics.col.openRate">Open %</th>
+              <th class="num" data-i18n="analytics.col.uClicks">Uniq. Clicks</th>
+              <th class="num" data-i18n="analytics.col.clickRate">Click %</th>
+              <th class="num" data-i18n="analytics.col.bounces">Bounces</th>
+              <th class="num" data-i18n="analytics.col.unsubs">Unsubs</th>
+            </tr>
+          </thead>
+          <tbody id="stats-tbody"></tbody>
+        </table>
+        <p id="table-empty" class="empty-msg" style="display:none;" data-i18n="analytics.noCampaigns">No campaigns found.</p>
+        <p id="no-events-hint" class="empty-msg" style="display:none;" data-i18n="analytics.noEventsHint">Metrics appear after a campaign is sent, with a short delay (stats are polled from SendGrid).</p>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (async function(){
+      if(!requireAuth()) return;
+      if(typeof applyTranslations === "function") applyTranslations();
+
+      const errGlobal   = document.getElementById("err-global");
+      const loadingMsg  = document.getElementById("loading-msg");
+      const noSendgrid  = document.getElementById("no-sendgrid");
+      const summaryEl   = document.getElementById("summary-cards");
+      const chartsEl    = document.getElementById("charts-area");
+      const tableCardEl = document.getElementById("table-card");
+      const tableEmpty  = document.getElementById("table-empty");
+      const statsTbody  = document.getElementById("stats-tbody");
+      const btnRefresh  = document.getElementById("btn-refresh");
+
+      let ratesChart = null;
+      let funnelChart = null;
+
+      function isDark(){
+        return document.documentElement.getAttribute("data-theme") === "dark";
+      }
+
+      function statusBadge(status){
+        const cls = {
+          sent: "status-sent",
+          scheduled: "status-scheduled",
+          draft: "status-draft",
+          canceled: "status-canceled",
+          paused: "status-scheduled",
+          triggered: "status-scheduled",
+        }[status] || "status-draft";
+        const k = "analytics.status." + status;
+        const label = t(k);
+        return `<span class="status-badge ${cls}">${label === k ? (status || "—") : label}</span>`;
+      }
+
+      function fmtDate(iso){
+        if(!iso) return "—";
+        try{
+          return new Date(iso).toLocaleDateString(undefined, {year:"numeric",month:"short",day:"numeric"});
+        }catch{ return iso; }
+      }
+
+      function rateClass(r){
+        if(r >= 20) return "rate-good";
+        if(r >= 5) return "rate-mid";
+        return "rate-low";
+      }
+
+      function renderSummary(campaigns){
+        const totSent      = campaigns.reduce((a,c) => a + c.requests, 0);
+        const totDelivered = campaigns.reduce((a,c) => a + c.delivered, 0);
+        const totOpens     = campaigns.reduce((a,c) => a + c.unique_opens, 0);
+        const totClicks    = campaigns.reduce((a,c) => a + c.unique_clicks, 0);
+        const totBounces   = campaigns.reduce((a,c) => a + c.bounces, 0);
+        const totUnsubs    = campaigns.reduce((a,c) => a + c.unsubscribes, 0);
+        const base         = totDelivered || totSent;
+        const avgOpen      = base ? (totOpens / base * 100).toFixed(1) : "—";
+        const avgClick     = base ? (totClicks / base * 100).toFixed(1) : "—";
+
+        const cards = [
+          {label:t("analytics.summary.campaigns"), value:campaigns.length, sub:t("analytics.summary.sub.total")},
+          {label:t("analytics.summary.sent"), value:totSent.toLocaleString(), sub:t("analytics.summary.sub.emails")},
+          {label:t("analytics.summary.delivered"), value:totDelivered.toLocaleString(), sub:base ? (totDelivered/base*100).toFixed(0)+"%" : ""},
+          {label:t("analytics.summary.uOpens"), value:totOpens.toLocaleString(), sub:avgOpen !== "—" ? avgOpen+"% "+t("analytics.summary.sub.openRate") : ""},
+          {label:t("analytics.summary.uClicks"), value:totClicks.toLocaleString(), sub:avgClick !== "—" ? avgClick+"% "+t("analytics.summary.sub.clickRate") : ""},
+          {label:t("analytics.summary.bounces"), value:totBounces.toLocaleString(), sub:""},
+          {label:t("analytics.summary.unsubs"), value:totUnsubs.toLocaleString(), sub:""},
+        ];
+        summaryEl.innerHTML = cards.map(c => `
+          <div class="summary-card">
+            <div class="sc-label">${c.label}</div>
+            <div class="sc-value">${c.value}</div>
+            ${c.sub ? `<div class="sc-sub">${c.sub}</div>` : ""}
+          </div>
+        `).join("");
+        summaryEl.style.display = "grid";
+      }
+
+      function renderCharts(campaigns){
+        if(!campaigns.length){ chartsEl.style.display = "none"; return; }
+        chartsEl.style.display = "grid";
+
+        const textColor = isDark() ? "#d1d5db" : "#374151";
+        const gridColor = isDark() ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+
+        const labels = campaigns.map(c => c.name.length > 22 ? c.name.slice(0,22)+"…" : c.name);
+        const openRates  = campaigns.map(c => c.open_rate);
+        const clickRates = campaigns.map(c => c.click_rate);
+
+        // Rates bar chart
+        const ratesCtx = document.getElementById("chart-rates").getContext("2d");
+        if(ratesChart) ratesChart.destroy();
+        ratesChart = new Chart(ratesCtx, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Open Rate %",
+                data: openRates,
+                backgroundColor: "rgba(79,70,229,0.75)",
+                borderRadius: 4,
+              },
+              {
+                label: "Click Rate %",
+                data: clickRates,
+                backgroundColor: "rgba(16,185,129,0.75)",
+                borderRadius: 4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: textColor, boxWidth: 14 } },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}%`,
+                },
+              },
+            },
+            scales: {
+              x: { ticks: { color: textColor, maxRotation: 30 }, grid: { color: gridColor } },
+              y: {
+                ticks: { color: textColor, callback: (v) => v + "%" },
+                grid: { color: gridColor },
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+
+        // Funnel doughnut
+        const totDelivered = campaigns.reduce((a,c) => a + c.delivered, 0);
+        const totOpens     = campaigns.reduce((a,c) => a + c.unique_opens, 0);
+        const totClicks    = campaigns.reduce((a,c) => a + c.unique_clicks, 0);
+        const notOpened    = Math.max(0, totDelivered - totOpens);
+        const openedNotClicked = Math.max(0, totOpens - totClicks);
+
+        const funnelCtx = document.getElementById("chart-funnel").getContext("2d");
+        if(funnelChart) funnelChart.destroy();
+        funnelChart = new Chart(funnelCtx, {
+          type: "doughnut",
+          data: {
+            labels: ["Clicked", "Opened (no click)", "Not opened"],
+            datasets: [{
+              data: [totClicks, openedNotClicked, notOpened],
+              backgroundColor: [
+                "rgba(16,185,129,0.85)",
+                "rgba(79,70,229,0.85)",
+                isDark() ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+              ],
+              borderWidth: 2,
+              borderColor: isDark() ? "#1f2937" : "#ffffff",
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { color: textColor, boxWidth: 14, padding: 14 },
+              },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => {
+                    const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                    const pct = total ? (ctx.parsed / total * 100).toFixed(1) : 0;
+                    return `${ctx.label}: ${ctx.parsed.toLocaleString()} (${pct}%)`;
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      function renderTable(campaigns){
+        tableCardEl.style.display = "block";
+        if(!campaigns.length){
+          tableEmpty.style.display = "block";
+          statsTbody.innerHTML = "";
+          return;
+        }
+        tableEmpty.style.display = "none";
+        statsTbody.innerHTML = campaigns.map(c => `
+          <tr>
+            <td class="name-cell" title="${c.name}">${c.name || "—"}</td>
+            <td>${statusBadge(c.status)}</td>
+            <td class="date-cell">${fmtDate(c.send_at)}</td>
+            <td class="num">${c.requests.toLocaleString()}</td>
+            <td class="num">${c.delivered.toLocaleString()}</td>
+            <td class="num">${c.unique_opens.toLocaleString()}</td>
+            <td class="num ${rateClass(c.open_rate)}">${c.open_rate}%</td>
+            <td class="num">${c.unique_clicks.toLocaleString()}</td>
+            <td class="num ${rateClass(c.click_rate)}">${c.click_rate}%</td>
+            <td class="num">${c.bounces.toLocaleString()}</td>
+            <td class="num">${c.unsubscribes.toLocaleString()}</td>
+          </tr>
+        `).join("");
+      }
+
+      async function loadData(){
+        loadingMsg.style.display = "block";
+        errGlobal.style.display = "none";
+        errGlobal.textContent = "";
+        summaryEl.style.display = "none";
+        chartsEl.style.display = "none";
+        tableCardEl.style.display = "none";
+        btnRefresh.disabled = true;
+
+        try{
+          const data = await API.getCampaignStats();
+          const campaigns = (data && Array.isArray(data.campaigns)) ? data.campaigns : [];
+          loadingMsg.style.display = "none";
+          renderSummary(campaigns);
+          renderCharts(campaigns);
+          renderTable(campaigns);
+          // Campaigns exist but no events have arrived yet (webhook not reachable locally).
+          const totalEvents = campaigns.reduce((a, c) => a + c.delivered + c.unique_opens + c.unique_clicks + c.bounces, 0);
+          const hint = document.getElementById("no-events-hint");
+          if(hint) hint.style.display = (campaigns.length && totalEvents === 0) ? "block" : "none";
+        }catch(ex){
+          loadingMsg.style.display = "none";
+          const msg = ex?.message || String(ex);
+          if(msg.includes("not configured")){
+            noSendgrid.style.display = "flex";
+          } else {
+            errGlobal.textContent = msg;
+            errGlobal.style.display = "block";
+          }
+        }finally{
+          btnRefresh.disabled = false;
+        }
+      }
+
+      btnRefresh.addEventListener("click", loadData);
+
+      window.addEventListener("taskflock-language-changed", () => {
+        if(typeof applyTranslations === "function") applyTranslations();
+        // Re-render JS-built summary/charts/table so their t()-strings switch too.
+        if(typeof loadData === "function") loadData();
+      });
+
+      await loadData();
+    })();
+  </script>
+</body>
+</html>

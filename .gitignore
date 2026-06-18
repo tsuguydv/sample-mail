@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+/backend/venv
+/backend/venv312
+.venv/
+
+# Local secrets and data (never publish)
+backend/.env
+.env
+*.env.example2
+backend/.env.example2
+*.db
+backend/app.db
+
+# Legacy standalone uploader (superseded; embedded repo + hardcoded key)
+backend/sendgrid-uploader/
+
+# Editor / assistant artifacts
+.aider*
+CLAUDE.md
+.claude/
+docs/superpowers/
+.cursor/
+.cursorrules
+
+# OS
+.DS_Store

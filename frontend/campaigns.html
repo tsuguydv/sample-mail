@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.campaigns">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Campaigns</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <style>
+    .campaigns-page{ max-width:760px; }
+    .section-card{
+      margin-top:16px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:var(--card);
+      overflow:hidden;
+    }
+    .section-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 18px;
+      border-bottom:1px solid var(--border);
+      background:var(--card);
+    }
+    .section-head-title{
+      font-size:14px;
+      font-weight:600;
+      color:var(--text);
+      margin:0;
+    }
+    .section-body{ padding:20px 18px; }
+    .form-row{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      margin-bottom:16px;
+    }
+    .form-row label{
+      font-size:12px;
+      font-weight:600;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+    .form-row select,
+    .form-row input[type="text"]{
+      width:100%;
+      padding:9px 12px;
+      border:1px solid var(--border);
+      border-radius:8px;
+      background:var(--bg);
+      color:var(--text);
+      font-size:13px;
+      box-sizing:border-box;
+    }
+    .form-row select:focus,
+    .form-row input[type="text"]:focus{
+      outline:none;
+      border-color:var(--primary);
+    }
+    .sender-info{
+      padding:10px 12px;
+      border-radius:8px;
+      background:var(--bg);
+      border:1px solid var(--border);
+      font-size:13px;
+      color:var(--text);
+    }
+    .sender-info .sender-email{ font-weight:600; }
+    .sender-info .sender-status-ok{ color:#067647; font-size:12px; margin-top:2px; }
+    .sender-info .sender-status-warn{ color:#b45309; font-size:12px; margin-top:2px; }
+    .warning-banner{
+      display:flex; align-items:flex-start; gap:10px;
+      padding:12px 16px; border-radius:10px;
+      background:#fffaeb; border:1px solid #f79009; color:#92400e; font-size:13px;
+    }
+    :root[data-theme="dark"] .warning-banner{
+      background:#2d1f00; border-color:#b45309; color:#fcd34d;
+    }
+    .info-banner{
+      display:flex; align-items:flex-start; gap:10px;
+      padding:12px 16px; border-radius:10px;
+      background:#eff6ff; border:1px solid #3b82f6; color:#1e40af; font-size:13px;
+      margin-bottom:16px;
+    }
+    :root[data-theme="dark"] .info-banner{
+      background:#0f1f3d; border-color:#2563eb; color:#93c5fd;
+    }
+    .result-ok-card{
+      padding:14px 16px; border-radius:10px;
+      background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46;
+      font-size:13px; line-height:1.6;
+    }
+    :root[data-theme="dark"] .result-ok-card{
+      background:#042f1d; border-color:#059669; color:#6ee7b7;
+    }
+    .result-ok-card strong{ display:block; margin-bottom:4px; font-size:14px; }
+    .result-err-card{
+      padding:14px 16px; border-radius:10px;
+      background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; font-size:13px;
+    }
+    :root[data-theme="dark"] .result-err-card{
+      background:#2d0a0a; border-color:#dc2626; color:#fca5a5;
+    }
+    .actions-bar{ display:flex; align-items:center; gap:12px; margin-top:20px; }
+    .empty-msg{ font-size:13px; color:var(--muted); }
+    #result-area{ margin-top:16px; }
+  </style>
+</head>
+<body>
+  <main class="container page-shell campaigns-page">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="contacts.html" data-i18n="nav.contacts">Contacts</a>
+      <a href="campaigns.html" class="active" data-i18n="nav.campaigns">Campaigns</a>
+      <a href="analytics.html" data-i18n="nav.analytics">Analytics</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+
+    <header class="page-header">
+      <h1 class="h2" data-i18n="campaigns.title">Send Campaign</h1>
+      <p class="p page-subtitle" data-i18n="campaigns.subtitle">Send a generated email to a contact list.</p>
+    </header>
+
+    <!-- Warning if the mailing provider is not configured -->
+    <div id="no-sendgrid" class="warning-banner" style="display:none; margin-top:16px; margin-bottom:8px;">
+      ⚠️ <span data-i18n="contacts.noSendgrid">The mailing provider is not configured on the server.</span>
+    </div>
+
+    <p id="err-global" class="error" style="display:none; margin-top:12px;"></p>
+
+    <div class="section-card">
+      <div class="section-head">
+        <h2 class="section-head-title" data-i18n="campaigns.formTitle">Campaign Settings</h2>
+      </div>
+      <div class="section-body">
+        <div class="info-banner">
+          ℹ️ <span data-i18n="campaigns.info">The email will be sent immediately to all contacts in the selected list. Make sure your sender email is verified with your mailing provider.</span>
+        </div>
+
+        <!-- Email picker -->
+        <div class="form-row">
+          <label data-i18n="campaigns.label.email">Generated Email</label>
+          <select id="sel-email">
+            <option value="" data-i18n="campaigns.placeholder.email">— Loading emails… —</option>
+          </select>
+        </div>
+
+        <!-- List picker -->
+        <div class="form-row">
+          <label data-i18n="campaigns.label.list">Contact List</label>
+          <select id="sel-list">
+            <option value="" data-i18n="campaigns.placeholder.list">— Loading lists… —</option>
+          </select>
+        </div>
+
+        <!-- Subject -->
+        <div class="form-row">
+          <label data-i18n="campaigns.label.subject">Subject</label>
+          <input type="text" id="inp-subject" placeholder="Email subject" />
+        </div>
+
+        <!-- Sender info -->
+        <div class="form-row">
+          <label data-i18n="campaigns.label.sender">Sender</label>
+          <div id="sender-info" class="sender-info">
+            <div class="sender-email" id="sender-email">—</div>
+            <div id="sender-status"></div>
+          </div>
+        </div>
+
+        <div class="actions-bar">
+          <button id="btn-send" class="btn" type="button" disabled data-i18n="campaigns.send">Send Campaign</button>
+          <span id="send-status" style="font-size:13px; color:var(--muted);"></span>
+        </div>
+
+        <div id="result-area"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (async function(){
+      if(!requireAuth()) return;
+      if(typeof applyTranslations === "function") applyTranslations();
+
+      const selEmail    = document.getElementById("sel-email");
+      const selList     = document.getElementById("sel-list");
+      const inpSubject  = document.getElementById("inp-subject");
+      const senderEmail = document.getElementById("sender-email");
+      const senderStatus= document.getElementById("sender-status");
+      const btnSend     = document.getElementById("btn-send");
+      const sendStatus  = document.getElementById("send-status");
+      const resultArea  = document.getElementById("result-area");
+      const errGlobal   = document.getElementById("err-global");
+      const noSendgrid  = document.getElementById("no-sendgrid");
+
+      function showErr(msg){
+        errGlobal.textContent = msg;
+        errGlobal.style.display = "block";
+      }
+      function clearErr(){
+        errGlobal.style.display = "none";
+        errGlobal.textContent = "";
+      }
+
+      function checkSendReady(){
+        const emailOk = selEmail.value !== "";
+        const listOk  = selList.value !== "";
+        btnSend.disabled = !(emailOk && listOk);
+      }
+
+      selEmail.addEventListener("change", () => {
+        const opt = selEmail.options[selEmail.selectedIndex];
+        const subject = opt ? (opt.dataset.subject || "") : "";
+        if(subject && !inpSubject.value) inpSubject.value = subject;
+        checkSendReady();
+      });
+      selList.addEventListener("change", checkSendReady);
+
+      // Load emails, lists and company profile in parallel
+      const [emailsRes, listsRes, companyRes] = await Promise.allSettled([
+        API.getGeneratedEmails(),
+        API.getContactLists(),
+        API.getCompany(),
+      ]);
+
+      // Populate emails
+      if(emailsRes.status === "fulfilled"){
+        const emails = Array.isArray(emailsRes.value) ? emailsRes.value : [];
+        selEmail.innerHTML = "";
+        if(!emails.length){
+          const o = document.createElement("option");
+          o.value = "";
+          o.textContent = "No saved emails found";
+          selEmail.appendChild(o);
+        } else {
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = "— Select an email —";
+          selEmail.appendChild(placeholder);
+          emails.forEach((e) => {
+            const o = document.createElement("option");
+            o.value = String(e.id);
+            o.dataset.subject = e.subject || e.title || "";
+            o.textContent = (e.title || e.subject || `Email #${e.id}`) +
+              (e.subject && e.title && e.subject !== e.title ? ` — ${e.subject}` : "");
+            selEmail.appendChild(o);
+          });
+        }
+      } else {
+        const msg = emailsRes.reason?.message || String(emailsRes.reason);
+        selEmail.innerHTML = `<option value="">${t("campaigns.errEmails")}</option>`;
+        showErr(t("campaigns.loadEmailsErr") + msg);
+      }
+
+      // Populate lists
+      if(listsRes.status === "fulfilled"){
+        const lists = (listsRes.value && Array.isArray(listsRes.value.lists)) ? listsRes.value.lists : [];
+        selList.innerHTML = "";
+        if(!lists.length){
+          const o = document.createElement("option");
+          o.value = "";
+          o.textContent = t("campaigns.noLists");
+          selList.appendChild(o);
+        } else {
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = t("campaigns.selectList");
+          selList.appendChild(placeholder);
+          lists.forEach((l) => {
+            const o = document.createElement("option");
+            o.value = l.id;
+            o.dataset.name = l.name;
+            o.textContent = l.name + (l.contactCount != null ? ` (${l.contactCount.toLocaleString()} contacts)` : "");
+            selList.appendChild(o);
+          });
+        }
+      } else {
+        const msg = listsRes.reason?.message || String(listsRes.reason);
+        if(msg.includes("not configured")){
+          noSendgrid.style.display = "flex";
+        } else {
+          selList.innerHTML = `<option value="">${t("campaigns.errLists")}</option>`;
+          showErr(t("campaigns.loadListsErr") + msg);
+        }
+      }
+
+      // Show company sender info
+      if(companyRes.status === "fulfilled"){
+        const company = companyRes.value || {};
+        const email = company.senderEmail || company.email || "—";
+        senderEmail.textContent = email;
+        if(company.senderVerified){
+          senderStatus.className = "sender-status-ok";
+          senderStatus.textContent = t("campaigns.senderVerified");
+        } else if(company.senderEmail){
+          senderStatus.className = "sender-status-warn";
+          senderStatus.textContent = t("campaigns.senderNotVerified");
+        }
+      }
+
+      checkSendReady();
+
+      btnSend.addEventListener("click", async () => {
+        clearErr();
+        resultArea.innerHTML = "";
+
+        const emailId = parseInt(selEmail.value, 10);
+        const listOpt = selList.options[selList.selectedIndex];
+        const listId  = selList.value;
+        const listName = listOpt ? (listOpt.dataset.name || listOpt.textContent) : listId;
+        const subject = inpSubject.value.trim();
+
+        if(!emailId || !listId) return;
+
+        if(!confirm(t("campaigns.sendConfirm", {name: listName}))){
+          return;
+        }
+
+        btnSend.disabled = true;
+        sendStatus.textContent = "Sending…";
+
+        try {
+          const result = await API.sendContactsCampaign({
+            list_id: listId,
+            list_name: listName,
+            generated_email_id: emailId,
+            subject,
+          });
+          sendStatus.textContent = "";
+          resultArea.innerHTML = `
+            <div class="result-ok-card">
+              <strong>✓ Campaign scheduled successfully!</strong>
+              <div>Name: <strong>${result.name || "—"}</strong></div>
+              <div>ID: <code>${result.single_send_id || "—"}</code></div>
+              <div>Status: <strong>${result.status || "—"}</strong></div>
+            </div>
+          `;
+        } catch(ex) {
+          sendStatus.textContent = "";
+          const msg = ex?.message || String(ex);
+          resultArea.innerHTML = `<div class="result-err-card">Error: ${msg}</div>`;
+        } finally {
+          checkSendReady();
+        }
+      });
+
+      window.addEventListener("taskflock-language-changed", () => {
+        if(typeof applyTranslations === "function") applyTranslations();
+      });
+    })();
+  </script>
+</body>
+</html>

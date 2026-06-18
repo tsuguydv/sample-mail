@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ru" data-page-title="page.title.plans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>smart-letters — Plans</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <main class="container container-narrow page-shell">
+    <nav class="dashboard-nav">
+      <a href="company.html" data-i18n="nav.company">Company Information</a>
+      <a href="params.html" data-i18n="nav.generate">Generate New Email</a>
+      <a href="generated-emails.html" data-i18n="nav.generated">Generated Emails</a>
+      <a href="contacts.html" data-i18n="nav.contacts">Contacts</a>
+      <a href="campaigns.html" data-i18n="nav.campaigns">Campaigns</a>
+      <a href="analytics.html" data-i18n="nav.analytics">Analytics</a>
+      <a href="account-settings.html" data-i18n="nav.account">Account Settings</a>
+    </nav>
+    <header class="page-header">
+      <h1 class="h2" data-i18n="plans.title">Plans</h1>
+      <p class="p page-subtitle">
+        <span data-i18n="plans.subtitle">Choose Free or upgrade to a paid plan for monthly tokens and top-ups.</span>
+        <a href="terms.html#tokens" data-i18n="payments.policyLink">Token &amp; refund policy</a>
+      </p>
+    </header>
+    <div id="plans-list" class="grid" style="gap:16px;"></div>
+    <p id="plans-status" class="small muted" data-i18n="payments.status.loading">Loading…</p>
+    <p id="plans-error" class="error" style="display:none;"></p>
+    <div class="page-actions" style="margin-top:16px;">
+      <a class="btn btn-outline" href="account-settings.html" data-i18n="common.back">Back</a>
+    </div>
+  </main>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/ui.js"></script>
+  <script>
+    (async function(){
+      if(!requireAuth()) return;
+      const listEl = document.getElementById("plans-list");
+      const statusEl = document.getElementById("plans-status");
+      const errEl = document.getElementById("plans-error");
+
+      function fmt(n){ return Number(n || 0).toLocaleString(); }
+
+      function renderFreeCard(plan, onFree, perText, perImage){
+        const card = document.createElement("div");
+        card.className = "card card-pad";
+        const freePerDay = plan.freeGenerationsPerDay || 1;
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:20px;font-weight:700;">${plan.name || "Free"}</div>
+              <div class="muted">${plan.displayPrice || "Free"}</div>
+              ${plan.description ? `<p class="small muted" style="margin:8px 0 0;">${plan.description}</p>` : ""}
+              <ul class="small muted" style="margin:12px 0 0;padding-left:18px;">
+                <li>${t("plans.free.generationsPerDay", { n: freePerDay })}</li>
+                <li>${t("plans.free.noTokens")}</li>
+                <li>${t("plans.pricingBreakdown", { text: perText, image: perImage })}</li>
+              </ul>
+            </div>
+            <button type="button" class="btn btn-outline" disabled>${onFree ? t("plans.button.active") : t("plans.free.default")}</button>
+          </div>
+        `;
+        return card;
+      }
+
+      function renderPaidCard(plan, isActive, perText, perImage, extra){
+        const card = document.createElement("div");
+        card.className = "card card-pad";
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:20px;font-weight:700;">${plan.name || "Plan"}</div>
+              <div class="muted">${plan.displayPrice || ""}${plan.cycleLabel ? " / " + plan.cycleLabel : ""}</div>
+              ${plan.description ? `<p class="small muted" style="margin:8px 0 0;">${plan.description}</p>` : ""}
+              <ul class="small muted" style="margin:12px 0 0;padding-left:18px;">
+                <li>${t("plans.includedTokens", { n: fmt(plan.tokens) })}</li>
+                <li>${t("plans.pricingBreakdown", { text: perText, image: perImage })}</li>
+                <li>${t("plans.extraTokenRate", { price: extra })}</li>
+              </ul>
+            </div>
+            <button type="button" class="btn btn-primary plan-subscribe-btn">${isActive ? t("plans.button.active") : t("plans.button.subscribe")}</button>
+          </div>
+        `;
+        const btn = card.querySelector(".plan-subscribe-btn");
+        if(isActive){
+          btn.disabled = true;
+        }else{
+          btn.addEventListener("click", async () => {
+            errEl.style.display = "none";
+            try{
+              const res = await API.createPaypalSubscription({ planId: plan.id });
+              if(!res?.approveUrl) throw new Error(t("payments.error.noUrl"));
+              window.location.href = res.approveUrl;
+            }catch(ex){
+              errEl.textContent = ex?.message || t("payments.error.init");
+              errEl.style.display = "block";
+            }
+          });
+        }
+        return card;
+      }
+
+      async function load(){
+        statusEl.setAttribute("data-i18n-skip", "1");
+        statusEl.textContent = t("payments.status.loading");
+        listEl.innerHTML = "";
+        try{
+          const s = await API.getBillingStatus();
+          const perText = s.tokensPerText || 10;
+          const perImage = s.tokensPerImage || 20;
+          const onFree = !s.hasActiveSubscription;
+          if(s.freePlan){
+            listEl.appendChild(renderFreeCard(s.freePlan, onFree, perText, perImage));
+          }
+          const paid = s.plans || [];
+          const activeId = s.activePlanId || "";
+          paid.forEach(plan => {
+            const extra = plan.extraTokenDisplayPrice || ("$" + Number(plan.extraTokenUsdPerToken || 0.012).toFixed(3));
+            const isActive = activeId && plan.id === activeId;
+            listEl.appendChild(renderPaidCard(plan, isActive, perText, perImage, extra));
+          });
+          if(!s.freePlan && !paid.length){
+            statusEl.textContent = t("plans.empty");
+            return;
+          }
+          statusEl.textContent = onFree
+            ? t("plans.status.onFree")
+            : t("plans.status.subscribed", { plan: activeId });
+        }catch(ex){
+          statusEl.textContent = t("payments.status.errorLoad");
+          errEl.textContent = ex?.message || t("payments.status.errorBilling");
+          errEl.style.display = "block";
+        }
+      }
+
+      window.addEventListener("taskflock-language-changed", () => { void load(); });
+      await load();
+    })();
+  </script>
+</body>
+</html>

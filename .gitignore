@@ -19,13 +19,5 @@ backend/app.db
 # Legacy standalone uploader (superseded; embedded repo + hardcoded key)
 backend/sendgrid-uploader/
 
-# Editor / assistant artifacts
-.aider*
-CLAUDE.md
-.claude/
-docs/superpowers/
-.cursor/
-.cursorrules
-
 # OS
 .DS_Store

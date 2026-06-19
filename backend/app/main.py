@@ -1650,6 +1650,10 @@ def api_verify_email(token: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Verification token has already been used")
     now = datetime.now(timezone.utc)
     exp = row.expires_at
+    # SQLite returns naive datetimes; treat a missing tzinfo as UTC so the comparison
+    # below never mixes naive and aware values (TypeError).
+    if exp is not None and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
     if exp is None or exp < now:
         raise HTTPException(status_code=400, detail="Verification token has expired")
     user = db.get(User, row.user_id)
@@ -1848,7 +1852,25 @@ def api_get_company(user: User = Depends(get_current_user), db: Session = Depend
 @app.put("/api/company", response_model=CompanyProfileSchema)
 def api_update_company(payload: CompanyProfileSchema, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     row = db.get(CompanyProfile, user.id)
+    old: dict = {}
+    if row and row.data_json:
+        try:
+            old = json.loads(row.data_json)
+        except Exception:
+            old = {}
     data = payload.model_dump()
+    # senderVerified is server-authoritative: never trust the client value, otherwise it
+    # would be reset to False on every profile save. Re-check live with the provider; on
+    # error keep the previous flag only when the sender email is unchanged.
+    sender_email = str(data.get("senderEmail") or "").strip()
+    if sender_email:
+        try:
+            data["senderVerified"] = bool(email_dispatch.sender_is_verified(sender_email))
+        except Exception:
+            same = sender_email.lower() == str(old.get("senderEmail") or "").strip().lower()
+            data["senderVerified"] = bool(old.get("senderVerified")) and same
+    else:
+        data["senderVerified"] = False
     if not row:
         row = CompanyProfile(user_id=user.id, data_json=json.dumps(data, ensure_ascii=False))
         db.add(row)
